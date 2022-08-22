@@ -1,9 +1,13 @@
-Plate
-- Store properties of the well plate
-- Not necessarily 96-well, for example should be able to do 6-well plate for testing
-- Also store what kind of sample is in each well?
+# Setup
 
+1. (Optional) Create virtual environment: `python -m venv venv`
+2. Activate venv: `venv\Scripts\activate` 
+3. Install packages: `pip install -r requirements.txt`
+   1. Note: you may need to download the latest version of Python
+   2. To update pip, run `python -m pip install --upgrade pip`
+  
 
-Chip
-- Store properties of the chip
-- Keep track of each channel's contents (which well the sample came from)
+# Development
+1. Clone repo
+2. Switch to branch `dev` or create new branch with `git checkout -b new_branch_name`
+3. Open a pull request to `main` when ready, never push to `main` directly
