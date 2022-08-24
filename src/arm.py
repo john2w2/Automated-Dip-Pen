@@ -2,10 +2,6 @@ import serial
 from stepper import Stepper
 import time
 
-
-class Arm:
-    pass # this will be current ZArm's equivalent
-
 class ZMotor:
     def __init__(self, stepper: Stepper, port="COM7", baudrate=115200, timeout=0.1):
         self.stepper = stepper
@@ -90,4 +86,20 @@ class ZMotor:
         while True:
             if self.arduino.in_waiting:
                 return self.arduino.readline().decode()
+
+
+class Arm:
+    def __init__(self, zmotor:ZMotor):
+        self.zmotor = zmotor
+
+    def calibrateOrigin(self):
+        self.zmotor.calibrateOrigin()
+
+    # def moveToOrigin(self, )
+
+    def stopArm(self):
+        self.zmotor.interrupt()
+
+    # TODO: finish this class
+    
 
