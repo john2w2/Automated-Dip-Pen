@@ -37,3 +37,4 @@ Cell Sample- Image Classification
 Other features
 - Loading in files with calibration values
 - TODO: I will wait until camera is working to do the stage channel functions- should be easy, basically copies of moveToWell
+
