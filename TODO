@@ -27,3 +27,8 @@ Volate:
 Cell Sample- Image Classification
 - Train model
 - Integrate model with pipeline
+
+
+Other features
+- Loading in files with calibration values
+- 
