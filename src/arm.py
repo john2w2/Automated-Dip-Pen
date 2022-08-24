@@ -31,7 +31,7 @@ class ZMotor:
         self.__sendCommand("INTERRUPT")
 
 
-    def moveToZAbsolute(self, steps: int):
+    def moveToZAbsoluteSteps(self, steps: int):
         """
         Move arm to the specified Z position (in number of motor steps)
         """
@@ -41,7 +41,7 @@ class ZMotor:
         self.__waitForIdle()   
 
     
-    def getZPosition(self) -> int:
+    def getZSteps(self) -> int:
         """
         Get (in number of motor steps) distance of arm from the top-most position
         """
@@ -49,6 +49,7 @@ class ZMotor:
         self.__sendCommand("getZPosition")
         res = self.__readSerial()
         return(int(res))
+
 
    
     def close(self):
