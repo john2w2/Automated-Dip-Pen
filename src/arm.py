@@ -31,9 +31,13 @@ class ZMotor:
         self.__sendCommand("INTERRUPT")
 
 
-    def moveToZAbsoluteSteps(self, steps: int):
-        """
-        Move arm to the specified Z position (in number of motor steps)
+    def moveToZInSteps(self, steps:int):
+        """Move arm to specified absolute Z position (in number of motor steps)
+
+        Origin is set at TOPMOST position, so to move down, pass in negative value
+
+        :param steps: distance (in number of motor steps) from the top
+        :type steps: int
         """
 
         cmd = f"moveToZAbsolute {steps}"
@@ -41,9 +45,28 @@ class ZMotor:
         self.__waitForIdle()   
 
     
-    def getZSteps(self) -> int:
+    def moveToZInUM(self, dist):
+        """Move arm to specified Z position (in um)
+
+        Origin is set at TOPMOST position, so to move down, pass in negative value
+        Example:
+        ```
+        zm.moveToZInMM(-3000)
+        ```
+
+        :param dist: distance (in um) from the top
+        :type dist: int
         """
-        Get (in number of motor steps) distance of arm from the top-most position
+
+        numSteps = int(dist / self.stepper.distPerStep)
+        self.moveToZInSteps(numSteps)
+
+    
+    def getZPosInSteps(self) -> int:
+        """Get (in number of motor steps) distance of arm from topmost position
+
+        :return: Vertical distance of arm (in motor steps) from topmost position
+        :rtype: int
         """
 
         self.__sendCommand("getZPosition")
@@ -51,10 +74,19 @@ class ZMotor:
         return(int(res))
 
 
+    def getZPosInUM(self) -> float:
+        """Get (in um) distance of arm from topmost position
+
+        :return: Vertical distance of arm (in um) from topmost position
+        :rtype: float
+        """
+        pos = self.getZPosInSteps()
+        return pos * self.stepper.distPerStep
+
    
     def close(self):
-        """
-        Close the serial connection to the arduino.
+        """Close serial connection to Arduino
+
         Must be called when program is shuttting down
         """
         self.arduino.close()

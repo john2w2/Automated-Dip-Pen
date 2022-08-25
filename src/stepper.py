@@ -4,7 +4,12 @@ class Screw:
         self.numStarts = numStarts
         self.tpi = tpi
 
-    def getLead(self):
+    def getLead(self) -> float:
+        """Get lead value, i.e. how far an object attached to the screw moves per one revolution of screw
+
+        :return: lead value for screw
+        :rtype: float
+        """
         # Lead = distance a nut moves per one revolution of the screw
         # TPI = Threads Per Inch. Count number of thread peaks per inch
         # Pitch = distance between crest threads = 1/ TPI
