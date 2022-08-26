@@ -11,3 +11,6 @@
 1. Clone repo
 2. Switch to branch `dev` or create new branch with `git checkout -b new_branch_name`
 3. Open a pull request to `main` when ready, never push to `main` directly
+4. Wait for pull request to be approved and merged
+
+- (Optional) Delete a branch: `git branch -d branch_name`
