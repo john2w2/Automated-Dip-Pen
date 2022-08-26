@@ -16,6 +16,11 @@ Stage
 - TODO: generalize code for use on 6-well plate
 
 
+Arm
+- Move up/down
+- 
+
+
 Pressure:
 - Testing to see how to pick up / deposit sample
 
@@ -27,3 +32,9 @@ Volate:
 Cell Sample- Image Classification
 - Train model
 - Integrate model with pipeline
+
+
+Other features
+- Loading in files with calibration values
+- TODO: I will wait until camera is working to do the stage channel functions- should be easy, basically copies of moveToWell
+
