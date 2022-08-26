@@ -1,4 +1,3 @@
-from multiprocessing.resource_sharer import DupSocket
 import serial
 from stepper import Stepper
 import time
