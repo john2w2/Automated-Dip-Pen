@@ -7,7 +7,7 @@ class Chip:
     :type numChan: int, optional
     :param chanWidth: Width of a single channel (um)
     :type chanWidth: int, optional
-    :param chanGapWidth: Width of gap between 2 adjacent channels (um)
+    :param chanGapWidth: Width of the gap between 2 adjacent channels (um)
     :type chanGapWidth: int, optional
     :param chanContents: Description of each channel's contents
     :type chanContents: list[str], optional
@@ -16,7 +16,7 @@ class Chip:
 
     CHAN_EMPTY: str = " "
 
-    def __init__(self, numChan=40, chanWidth=100, chanGapWidth=260):
+    def __init__(self, numChan=40, chanWidth=100, chanGapWidth=160):
         """
         Constructor
         """

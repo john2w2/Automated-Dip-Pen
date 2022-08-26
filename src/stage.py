@@ -7,7 +7,8 @@ import time
 
 
 class Stage:
-    # TODO: change the default values for firstWellPos, they are bogus
+
+    # stepSize = distance (im um) a single motor step will move the stage
     def __init__(self, plate: Plate, chip: Chip, port="COM6", baudrate=9600, timeout=0.1, stepSize=0.04):
         self.ser = serial.Serial(port, baudrate, timeout=timeout)
         self.plate = plate
@@ -15,10 +16,12 @@ class Stage:
 
         # TODO: for convenience right now, change later  - let files be loaded in
         self.firstWellPos = (-2147477, -293671)
+        self.firstChannelCamPos = (-2016268, -1409635)
 
         self.stepSize = stepSize
-        # BUG: possible bug here, stepChanSize is defined as number of stage motor steps between centers of 2 adjacent wells
-        # self.chanStepSize = self.chip.chanGapWidth / self.stepSize
+
+        # This is the distance (in motor steps) between centers of 2 adjacent channels
+        self.chanStepSize = (self.chip.chanGapWidth+self.chip.chanWidth) / self.stepSize
         self.wellStepSize = self.plate.diam / self.stepSize
 
         # TODO: used to have self.plateInitX, plateInitY
@@ -31,18 +34,17 @@ class Stage:
         # Move stage to absolute 0,0 position
         self.writeRead("G,0,0", isMoveCmd=True)
         self.writeRead("P,0,0,0")  # Define this location as origin
-        # Prior advises that SIS only be used upon first installation
+        # Prior advises that SIS only be used upon first installation, possibly avoid
 
     # Set coordinates for well A1 on stage
     # Again, we justify that the "stage" encapsulates the actual microscope stage + well/chip on top of it
-
     def setFirstWellPos(self) -> tuple:
         # Assume user has positioned printer head above center of well A1
         stagePos = self.getStageXY()
         self.firstWellPos = tuple(stagePos)
 
     def moveToWell(self, well: str):
-        if self.isValidWell(well):
+        if self.isRealWell(well):
             well = well.split(",")
             row = int(well[0])
             col = int(well[1])
@@ -51,6 +53,17 @@ class Stage:
             yOffset = (row-1) * self.wellStepSize * -1
 
             cmd = f"G,{self.firstWellPos[0]+xOffset},{self.firstWellPos[1]+yOffset}"
+            self.writeRead(cmd, isMoveCmd=True)
+
+
+    def setFirstChannelCamPos(self) -> tuple:
+        stagePos = self.getStageXY()
+        self.firstChannelCamPos = tuple(stagePos)
+
+    def moveToChannelCam(self, chanNum: int):
+        if self.isRealChannel(chanNum=chanNum):
+            yOffset = (chanNum - 1) * self.chanStepSize * -1
+            cmd = f"G,{self.firstChannelCamPos[0]},{self.firstChannelCamPos[1]+yOffset}"
             self.writeRead(cmd, isMoveCmd=True)
       
 
@@ -82,9 +95,16 @@ class Stage:
         return not (start == end)
 
     # Private helper methods
-    # TODO: designate these as private
+    # TODO: designate these as private with _
 
-    def isValidWell(self, well: str):
+    def isRealWell(self, well: str) -> bool:
+        """Return if well with given ID exists on well plate
+
+        :param well: Well ID
+        :type well: str
+        :return: True if well exists; False otherwise
+        :rtype: bool
+        """
         # NOTE: the old letter, number system (e.g., A3) is not generalizable
         # For example, 384-well plates exist and are used
         # Better ID system: "row,col"
@@ -101,8 +121,17 @@ class Stage:
             return False
         return True
 
-    # Expecting response
 
+    def isRealChannel(self, chanNum:int) -> bool:
+        if(chanNum < 1 or chanNum > self.chip.numChan):
+            print("Channel number out of bounds!")
+            print(
+                f"Currently using chip with {self.chip.numChan} channels"
+            )
+            return False
+        return True
+
+    # Expecting response
     def writeRead(self, cmd: str, isMoveCmd=False) -> str:
         cmd = f"{cmd}\r"
         self.ser.write(cmd.encode())
