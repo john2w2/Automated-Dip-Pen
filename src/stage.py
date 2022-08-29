@@ -132,6 +132,13 @@ class Stage:
             return False
         return True
 
+
+    ### Pure stage movement commands
+    # distance in microns
+    def moveXInUM(self, dist):
+        steps = dist / self.stepSize
+        
+
     # Expecting response
     def writeRead(self, cmd: str, isMoveCmd=False) -> str:
         cmd = f"{cmd}\r"

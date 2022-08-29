@@ -12,6 +12,7 @@ class GUICamera:
         self.rMin = None
         self.rMax = None
 
+    # return ndarray
     def getImage(self):
         self.mmc.snapImage()
         img = self.mmc.getImage()
@@ -20,14 +21,6 @@ class GUICamera:
         return img
 
     def contrastImage(self, img):
-        """Make image clearer by increasing contrast
-
-        :param img: _description_
-        :type img: _type_
-        :return: Cleaned image
-        :rtype: ndarray
-        """
-
         if (self.rMin == None):
             self.rMin = np.min(img)
             self.rMax = np.max(img)
