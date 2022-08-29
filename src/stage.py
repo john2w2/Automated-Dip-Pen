@@ -40,6 +40,7 @@ class Stage:
     # Again, we justify that the "stage" encapsulates the actual microscope stage + well/chip on top of it
     def setFirstWellPos(self) -> tuple:
         # Assume user has positioned printer head above center of well A1
+        # TODO: remove this assumption later, have this be automated for accuracy
         stagePos = self.getStageXY()
         self.firstWellPos = tuple(stagePos)
 
