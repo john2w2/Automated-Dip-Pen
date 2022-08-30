@@ -135,9 +135,16 @@ class Stage:
 
     ### Pure stage movement commands
     # distance in microns
+    # NOTE: move left => negative distance
     def moveXInUM(self, dist):
         steps = dist / self.stepSize
-        
+        cmd = f"GR,{steps},0"
+        self.writeRead(cmd, isMoveCmd=True)
+
+    def moveYInUM(self, dist):
+        steps = dist / self.stepSize
+        cmd = f"GR,0,{steps}"
+        self.writeRead(cmd, isMoveCmd=True)
 
     # Expecting response
     def writeRead(self, cmd: str, isMoveCmd=False) -> str:
