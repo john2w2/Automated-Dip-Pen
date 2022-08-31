@@ -40,6 +40,7 @@ class Stage:
     # Again, we justify that the "stage" encapsulates the actual microscope stage + well/chip on top of it
     def setFirstWellPos(self) -> tuple:
         # Assume user has positioned printer head above center of well A1
+        # TODO: remove this assumption later, have this be automated for accuracy
         stagePos = self.getStageXY()
         self.firstWellPos = tuple(stagePos)
 
@@ -130,6 +131,26 @@ class Stage:
             )
             return False
         return True
+
+
+    ### Pure stage movement commands
+    # distance in microns
+    # NOTE: move left => negative distance
+    def moveXInUM(self, dist):
+        steps = dist / self.stepSize
+        cmd = f"GR,{steps},0"
+        self.writeRead(cmd, isMoveCmd=True)
+
+    def moveYInUM(self, dist):
+        steps = dist / self.stepSize
+        cmd = f"GR,0,{steps}"
+        self.writeRead(cmd, isMoveCmd=True)
+
+    # x and y in motor steps
+    # Used to move to absolute position
+    def moveToPos(self, x, y):
+        cmd = f"G,{x},{y}"
+        self.writeRead(cmd, isMoveCmd=True)
 
     # Expecting response
     def writeRead(self, cmd: str, isMoveCmd=False) -> str:

@@ -23,10 +23,12 @@ Arm
 
 Pressure:
 - Testing to see how to pick up / deposit sample
+- Provided OB1 methods seem sufficient
 
 
-Volate:
+Voltage:
 - Testing to see how to print sample to chip
+- Code possibly already written (check Kyler's NIS code)
 
 
 Cell Sample- Image Classification
@@ -34,7 +36,24 @@ Cell Sample- Image Classification
 - Integrate model with pipeline
 
 
+GUI:
+- Buttons (if not using joystick) to move z arm up/down
+- 
+
 Other features
 - Loading in files with calibration values
 - TODO: I will wait until camera is working to do the stage channel functions- should be easy, basically copies of moveToWell
+
+===================================
+
+Make YArm class
+Possibly generalize the motor code- make child class
+
+Well center calibration
+
+How to determine where printer head is
+
+Calculate (instead of allowing user) to determine printer head / arm positions?
+
+Camera specs
 
