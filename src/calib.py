@@ -21,6 +21,11 @@ def calibFirstWellPos():
         A right triangle with all 3 endpoints on the circle boundary will
         have one of its sides go through the center, with length = diameter
 
+    Procedure:
+        1. Fill first well- (1, 1) with 700 microliters of fluorescent buffer
+        2. Locate top left of first well under camera. Well should be bright gray/white, everything else black
+        3. Place center of cross just left of the fluorescent well, still in the black region
+
     :return: Coordinates of first well center under camera (in stage steps)
     :rtype: (int, int)
     """
