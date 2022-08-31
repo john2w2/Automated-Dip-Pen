@@ -3,7 +3,7 @@ import os.path
 import cv2 as cv
 import numpy as np
 
-class GUICamera:
+class Camera:
     def __init__(self):
         mm_dir = "C:\Program Files\Micro-Manager-2.0"
         self.mmc = pymmcore.CMMCore()

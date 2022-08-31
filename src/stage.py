@@ -146,6 +146,12 @@ class Stage:
         cmd = f"GR,0,{steps}"
         self.writeRead(cmd, isMoveCmd=True)
 
+    # x and y in motor steps
+    # Used to move to absolute position
+    def moveToPos(self, x, y):
+        cmd = f"G,{x},{y}"
+        self.writeRead(cmd, isMoveCmd=True)
+
     # Expecting response
     def writeRead(self, cmd: str, isMoveCmd=False) -> str:
         cmd = f"{cmd}\r"
