@@ -18,7 +18,7 @@ Stage
 
 Arm
 - Move up/down
-- 
+-
 
 
 Pressure:
@@ -38,7 +38,7 @@ Cell Sample- Image Classification
 
 GUI:
 - Buttons (if not using joystick) to move z arm up/down
-- 
+-
 
 Other features
 - Loading in files with calibration values
@@ -48,8 +48,6 @@ Other features
 
 Make YArm class
 Possibly generalize the motor code- make child class
-
-Well center calibration
 
 How to determine where printer head is
 

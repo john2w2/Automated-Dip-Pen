@@ -1,11 +1,11 @@
 # Setup
 
 1. (Optional) Create virtual environment: `python -m venv venv`
-2. Activate venv: `venv\Scripts\activate` 
+2. Activate venv: `venv\Scripts\activate`
 3. Install packages: `pip install -r requirements.txt`
    1. Note: you may need to download the latest version of Python
    2. To update pip, run `python -m pip install --upgrade pip`
-  
+
 
 # Development
 1. Clone repo
@@ -41,3 +41,4 @@
 # Warnings
 1. Elveflow pressure system will suck in air/water when software is disconnected. Make sure cap is on
 2. Printer head is fragile
+3. Do not remove printer container by pulling on the clear plastic piping! Slide the printer out with fingernails

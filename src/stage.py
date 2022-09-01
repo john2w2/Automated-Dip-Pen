@@ -3,13 +3,32 @@ from plate import *
 from chip import *
 import time
 
-# The "Stage" really encompasses the whole setup on top of the stage- Chip, Plate, and microscope stage
-
-
 class Stage:
+    """
+    This class represents the microscope stage and attached devices (well plate and chip)
 
-    # stepSize = distance (im um) a single motor step will move the stage
+    Many methods in this class enable required stage movements for the rest of the system, such as
+    moving to a certain well.
+
+    :param plate: Well Plate used for experimentation
+    :type plate: class:`plate.Plate`
+    :param chip: Chip used for experimentation
+    :type chip: class:`chip.Chip`
+    :param port: Name of serial port
+    :type port: str, optional
+    :param baudrate: Max rate at which information transferred, (in bits/s)
+    :type baudrate: int, optional
+    :param timeout: Timeout for serial read() (in seconds)
+    :type timeout: float, optional
+    :param stepSize: Distance (in um) a single motor step will move the stage
+    :type stepSize: float, optional
+
+    """
+
     def __init__(self, plate: Plate, chip: Chip, port="COM6", baudrate=9600, timeout=0.1, stepSize=0.04):
+        """Constructor
+        """
+
         self.ser = serial.Serial(port, baudrate, timeout=timeout)
         self.plate = plate
         self.chip = chip
@@ -20,21 +39,24 @@ class Stage:
 
         self.stepSize = stepSize
 
-        # This is the distance (in motor steps) between centers of 2 adjacent channels
+        # Derived Fields:
+        # Distance (in motor steps) between centers of 2 adjacent channels
         self.chanStepSize = (self.chip.chanGapWidth+self.chip.chanWidth) / self.stepSize
+        # Distance (in motor steps) between centers of 2 adjacent wells
         self.wellStepSize = self.plate.diam / self.stepSize
 
-        # TODO: used to have self.plateInitX, plateInitY
+        # NOTE: we used to have self.plateInitX, plateInitY
         # We should standardize that initial reference well is A1, since there is no guarantee which well plate is being used
+        # At least we know for any well plate, A1 exists
 
     def setOrigin(self):
-        # TODO: make a note of this in the official docs
-        # Since (0, 0) is bottom right, stage up => y decreases, stage left => x decreases
+        """Move stage to origin
+        """
+        # NOTE: Since (0, 0) is bottom right, stage up => y decreases, stage left => x decreases
 
-        # Move stage to absolute 0,0 position
-        self.writeRead("G,0,0", isMoveCmd=True)
-        self.writeRead("P,0,0,0")  # Define this location as origin
-        # Prior advises that SIS only be used upon first installation, possibly avoid
+        self.writeRead("G,0,0", isMoveCmd=True) # Move to origin
+        self.writeRead("P,0,0,0")  # Redefine this location as origin
+        # NOTE: Prior advises that SIS only be used upon first installation, possibly avoid
 
     # Set coordinates for well A1 on stage
     # Again, we justify that the "stage" encapsulates the actual microscope stage + well/chip on top of it
@@ -45,11 +67,16 @@ class Stage:
         self.firstWellPos = tuple(stagePos)
 
     def moveToWell(self, well: str):
+        """Move specified well under printer head
+
+        :param well: ID of well. Format = row,column
+        :type well: str
+        """
         if self.isRealWell(well):
             well = well.split(",")
             row = int(well[0])
             col = int(well[1])
-            
+
             xOffset = (col-1) * self.wellStepSize * -1
             yOffset = (row-1) * self.wellStepSize * -1
 
@@ -58,18 +85,27 @@ class Stage:
 
 
     def setFirstChannelCamPos(self) -> tuple:
+        """Calibrate location of first channel under the camera
+
+        TODO: this is a calibration function, possibly move
+        """
         stagePos = self.getStageXY()
         self.firstChannelCamPos = tuple(stagePos)
 
     def moveToChannelCam(self, chanNum: int):
+        """Move specified channel under camera
+
+        :param chanNum: Channel number
+        :type chanNum: int
+        """
         if self.isRealChannel(chanNum=chanNum):
             yOffset = (chanNum - 1) * self.chanStepSize * -1
             cmd = f"G,{self.firstChannelCamPos[0]},{self.firstChannelCamPos[1]+yOffset}"
             self.writeRead(cmd, isMoveCmd=True)
-      
+
 
     def getStageX(self) -> int:
-        """Gets the X position of the stage (in number of motor steps)
+        """Get X position of the stage (in number of motor steps)
 
         Take this number and multiply by self.stepSize to get X pos in number of microns from origin
 
@@ -89,17 +125,23 @@ class Stage:
         res = [int(x) for x in res]
         return res[:-1]  # ignore z
 
-    # Prior's manual recommends this style of checking for motion
     def isMoving(self) -> bool:
+        """Check if the stage is moving
+
+        Prior's manual recommends this style of checking for motion
+
+        :return: True if the stage is moving; False otherwise
+        :rtype: bool
+        """
         start = self.getStageXY()
         end = self.getStageXY()
         return not (start == end)
 
-    # Private helper methods
+    #### Private helper methods
     # TODO: designate these as private with _
 
     def isRealWell(self, well: str) -> bool:
-        """Return if well with given ID exists on well plate
+        """Check if well with given ID exists on well plate
 
         :param well: Well ID
         :type well: str
@@ -124,6 +166,13 @@ class Stage:
 
 
     def isRealChannel(self, chanNum:int) -> bool:
+        """Check if channel with given number exists on chip
+
+        :param chanNum: Channel number
+        :type chanNum: int
+        :return: True if channel exists; False otherwise
+        :rtype: bool
+        """
         if(chanNum < 1 or chanNum > self.chip.numChan):
             print("Channel number out of bounds!")
             print(
@@ -133,10 +182,18 @@ class Stage:
         return True
 
 
-    ### Pure stage movement commands
-    # distance in microns
-    # NOTE: move left => negative distance
-    def moveXInUM(self, dist):
+    # ======================================== #
+    # Raw Stage Movement Commands              #
+    # ======================================== #
+    def moveXInUM(self, dist: float):
+        """Move stage in x-direction by distance
+
+        NOTE: Move stage left => negative distance
+        Also since the printer is fixed, moving stage left => moving printer right along devices
+
+        :param dist: Distance (in um) to move stage in x-direction
+        :type dist: float
+        """
         steps = dist / self.stepSize
         cmd = f"GR,{steps},0"
         self.writeRead(cmd, isMoveCmd=True)
@@ -146,17 +203,24 @@ class Stage:
         cmd = f"GR,0,{steps}"
         self.writeRead(cmd, isMoveCmd=True)
 
-    # x and y in motor steps
-    # Used to move to absolute position
-    def moveToPos(self, x, y):
+
+    def moveToPos(self, x:int, y:int):
+        """Move to absolute position
+
+        :param x: Distance (in motor steps) to move stage in x-dir
+        :type x: int
+        :param y: Distance (in motor steps) to move stage in y-dir
+        :type y: int
+        """
         cmd = f"G,{x},{y}"
         self.writeRead(cmd, isMoveCmd=True)
 
-    # Expecting response
+
     def writeRead(self, cmd: str, isMoveCmd=False) -> str:
         cmd = f"{cmd}\r"
         self.ser.write(cmd.encode())
         # wait until we get back "R" if movement command
+        # See PRIOR manual for details if needed
         if isMoveCmd:
             res = self.ser.readline()
             while (not (b'R' in res)):
@@ -166,4 +230,6 @@ class Stage:
             return self.ser.readline().decode()
 
     def close(self):
+        """Close serial connection
+        """
         self.ser.close()

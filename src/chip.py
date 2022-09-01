@@ -1,7 +1,7 @@
 class Chip:
 
     """
-    Chip used for experimentation
+    This class represents the Chip used for experimentation
 
     :param numChan: Number of channels on the chip
     :type numChan: int, optional
@@ -19,18 +19,29 @@ class Chip:
     def __init__(self, numChan=40, chanWidth=100, chanGapWidth=160):
         """
         Constructor
+
+        By default our chip has 40 channels
         """
         self.numChan = numChan
         self.chanWidth = chanWidth
         self.chanGapWidth = chanGapWidth
         self.chanContents = [Chip.CHAN_EMPTY for _ in range(self.numChan)]
 
+
     def getChannelContents(self, channelNum: int) -> str:
         assert (channelNum >= 1 and channelNum <= self.numChan)
         return self.chanContents[channelNum-1]
 
     def isEmpty(self, channelNum: int) -> bool:
+        """Check if a channel is empty
+
+        :param channelNum: Channel number
+        :type channelNum: int
+        :return: True if channel empty; False otherwise
+        :rtype: bool
+        """
         return self.getChannelContents(channelNum) == Chip.CHAN_EMPTY
+
 
     def fillChannel(self, channelNum: int, wellID: str):
         assert (channelNum >= 1 and channelNum <= self.numChan)
@@ -38,7 +49,6 @@ class Chip:
             print("ERROR: This channel already holds a sample")
         else:
             self.chanContents[channelNum-1] = wellID\
-
 
     def getAllChannelContents(self):
         return self.chanContents

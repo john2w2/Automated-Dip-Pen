@@ -2,8 +2,19 @@ import serial
 import time
 
 class Screw:
+    """
+    This class represents the screw attached to a stepper motor
+
+    :param numStarts: Number of ridges wrapped around screw body
+    :type numStarts: int, optional
+    :param tpi: Threads Per Inch. Count number of thread peaks per inch
+    :type tpi: int, optional
+
+    """
 
     def __init__(self, numStarts=2, tpi=13):
+        """Constructor
+        """
         self.numStarts = numStarts
         self.tpi = tpi
 
@@ -29,8 +40,13 @@ class Screw:
 
 class Stepper:
 
-    """This class represents a Stepper motor
+    """
+    This class represents a Stepper motor
 
+    :param screw: Screw attached to stepper motor
+    :type screw: class:`stepper.Screw`
+    :param stepsPerRev: Number of motor steps for a full revolution (360 degrees)
+    :type stepsPerRev: int, optional
     """
 
     def __init__(self, screw: Screw, stepsPerRev=200):
@@ -43,6 +59,19 @@ class Stepper:
 
 
 class ZMotor:
+    """
+    This class represents the Z-Axis Motor responsible for moving Arm up/down
+
+    :param stepper: Stepper motor for Z-Axis Motor
+    :type stepper: class:`stepper.Stepper`
+    :param port: Name of serial port
+    :type port: str, optional
+    :param baudrate: Max rate at which information transferred, (in bits/s)
+    :type baudrate: int, optional
+    :param timeout: Timeout for serial read() (in seconds)
+    :type timeout: float, optional
+
+    """
     def __init__(self, stepper: Stepper, port="COM7", baudrate=115200, timeout=0.1):
         self.stepper = stepper
         self.arduino = serial.Serial(
@@ -68,7 +97,7 @@ class ZMotor:
 
         Origin is set at topmost position, so to move down, pass in negative value
 
-        :param steps: distance (in number of motor steps) from the top
+        :param steps: Distance (in number of motor steps) from the top
         :type steps: int
         """
 
@@ -84,7 +113,7 @@ class ZMotor:
         zm.moveToZInMM(-3000)
         ```
 
-        :param dist: distance (in um) from the top
+        :param dist: Distance (in um) from the top
         :type dist: int
         """
 
@@ -92,7 +121,7 @@ class ZMotor:
         self.moveToZInSteps(numSteps)
 
     def moveToZRelInUM(self, dist:int):
-        """Move arm by amount=dist, relative to current position
+        """Move arm by specified distance, relative to current position
 
         :param dist: Amount to move by (in um)
         :type dist: int
@@ -104,7 +133,7 @@ class ZMotor:
 
 
     def moveToZRelInMM(self, dist:int):
-        """Move arm by amount=dist, relative to current position
+        """Move arm by specified distance, relative to current position
 
         :param dist: Amount to move by (in mm)
         :type dist: int
