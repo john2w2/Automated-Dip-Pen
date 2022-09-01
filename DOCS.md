@@ -10,3 +10,6 @@
 
 - Python Documentation Guide (Sphinx): https://sphinx-rtd-tutorial.readthedocs.io/en/latest/docstrings.html
 
+- Automated-SCA Code Hierarchy Diagram: https://docs.google.com/drawings/d/1Kuz1d2hwv_kSy3Ww1llaX-6a0z4WXBqCEhWC7uq_7A8/edit?usp=sharing
+
+
