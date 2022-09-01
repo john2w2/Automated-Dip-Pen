@@ -1,14 +1,14 @@
 class Plate:
     """
-    Well Plate used for experimentation
+    This class represents the Well Plate used for experimentation
 
     :param numRows: Number of rows on the plate, denoted by A, B, C, ...
     :type numRows: int, optional
     :param numCols: Number of columns on the plate, numbered 1, 2, 3...
     :type numCols: int, optional
-    :param wellDiam: Diameter of a well (um)
+    :param wellDiam: Diameter (in um) of a well
     :type wellDiam: int, optional
-    :param wellDepth: Depth of a well (um)
+    :param wellDepth: Depth (in um) of a well
     :type wellDepth: int, optional
 
     """

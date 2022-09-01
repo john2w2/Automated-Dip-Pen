@@ -17,10 +17,17 @@ class Camera:
         self.mmc.snapImage()
         img = self.mmc.getImage()
         img = self.contrastImage(img)
-        img = (cv.resize(img, (img.shape[1] // 2, img.shape[0] // 2))) 
+        img = (cv.resize(img, (img.shape[1] // 2, img.shape[0] // 2)))
         return img
 
     def contrastImage(self, img):
+        """Increase constrast in image
+
+        :param img: Image taken by camera
+        :type img: ndarray
+        :return: Processed image
+        :rtype: ndarray
+        """
         if (self.rMin == None):
             self.rMin = np.min(img)
             self.rMax = np.max(img)
