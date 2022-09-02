@@ -6,7 +6,7 @@
 - Hamamatsu Camera: https://www.hamamatsu.com/content/dam/hamamatsu-photonics/sites/documents/99_SALES_LIBRARY/sys/SCAS0156E_HCImage-Flash4.0V2.pdf
 
 
-# Developers
+# Development
 
 - Python Documentation Guide (Sphinx): https://sphinx-rtd-tutorial.readthedocs.io/en/latest/docstrings.html
 

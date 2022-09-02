@@ -1,0 +1,21 @@
+Arm:
+    Can set and move to any relevant vertical positions (into well, origin, etc.)
+
+Stage:
+    Move stage to any relevant locations:
+        - Move any well / channel under printer head or camera
+
+Pressure:
+    Can control pressure and suck in sample, also eject sample (NOT same as printing)
+
+Voltage:
+    Can control voltage to make printer print droplets- print()
+    
+Camera:
+    Can take images through microscope camera and process them, that's into
+
+
+We now need a driver that will:
+    - Call the calibration functions
+    - Combine movement and printing
+
