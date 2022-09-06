@@ -51,7 +51,7 @@ class Chip:
             self.chanContents[channelNum-1] = wellID\
 
     def getAllChannelContents(self):
-        return self.chanContents
+        return self.chanContents.copy()
 
     def __str__(self):
         return (

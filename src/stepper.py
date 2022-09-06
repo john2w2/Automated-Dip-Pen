@@ -37,7 +37,7 @@ class Screw:
         lead = pitch * self.numStarts
         return lead
 
-
+# TODO: merge
 class Stepper:
 
     """
@@ -72,13 +72,16 @@ class ZMotor:
     :type timeout: float, optional
 
     """
-    def __init__(self, stepper: Stepper, port="COM7", baudrate=115200, timeout=0.1):
-        self.stepper = stepper
-        self.arduino = serial.Serial(
-            port=port, baudrate=baudrate, timeout=timeout)
+    # TODO: add constructor parameters: numStarts, TPI
+    def __init__(self, arduinoController: serial.Serial, numStarts=2, tpi=13, stepsPerRev=200):
+        self.screw = Screw(numStarts=numStarts, tpi=tpi)
+        self.stepper = Stepper(screw=self.screw, stepsPerRev=stepsPerRev)
+        self.arduino = arduinoController
 
         # TODO: you have to wait?
         time.sleep(2)
+        # TODO: calibration step - talk to arudino, wait for something back
+        # arduino gets reset
 
     def calibrateOrigin(self):
         """Move arm until it hits topmost limit switch, saves that position as origin

@@ -15,6 +15,7 @@
 
 - (Optional) Delete a branch: `git branch -d branch_name`
 
+- `main` branch should contain 100% tested and runnable code
 
 # Protocol
 

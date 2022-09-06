@@ -1,9 +1,12 @@
+import serial
+
 from stepper import ZMotor
 
 class Arm:
     # TODO: later, pass in YMotor
-    def __init__(self, zmotor: ZMotor):
-        self.zmotor = zmotor
+    def __init__(self, arduinoPort): # TODO: pass in arduinoController here
+        self.arduinoController = serial.Serial(port=arduinoPort, baudrate=115200, timeout=0.1)
+        self.zmotor = ZMotor(arduinoController=self.arduinoController)
 
     def calibrateOrigin(self):
         self.zmotor.calibrateOrigin()
@@ -38,5 +41,8 @@ class Arm:
     def moveZChannelPos(self):
         self.zmotor.moveToZInSteps(self.zChannelPos)
 
-    def stopArm(self):
+    def interruptArm(self):
         self.zmotor.interrupt()
+
+    def close(self):
+        self.arduinoController.close()

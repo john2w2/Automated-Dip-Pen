@@ -25,11 +25,11 @@ class Stage:
 
     """
 
-    def __init__(self, plate: Plate, chip: Chip, port="COM6", baudrate=9600, timeout=0.1, stepSize=0.04):
+    def __init__(self, plate: Plate, chip: Chip, priorController : serial.Serial, stepSize=0.04):
         """Constructor
         """
 
-        self.ser = serial.Serial(port, baudrate, timeout=timeout)
+        self.ser = priorController
         self.plate = plate
         self.chip = chip
 
@@ -49,14 +49,42 @@ class Stage:
         # We should standardize that initial reference well is A1, since there is no guarantee which well plate is being used
         # At least we know for any well plate, A1 exists
 
-    def setOrigin(self):
-        """Move stage to origin
+    
+    def calibPrinterOffset(self, offsetX: int, offsetY: int):
+        """
+        Saves the offset of the printer head
+        Offset values come from GUI calibration method
+
+        :param offsetX: distance (in steps) stage has to move to put first 
+            channel under printer head, starting from first channel
+            being focused on cross of camera (along x axis)
+            offsetX = printerDropX - focusedDropX
+        :type offsetX: int
+        :param offsetY: distance (in steps) stage has to move to put first 
+            channel under printer head, starting from first channel
+            being focused on cross of camera (along x axis)
+            offsetY = printerDropY - focusedDropY
+        :type offsetY: int
+        """
+        self.offset = (offsetX, offsetY)
+
+    def moveChannelToPrinter(self, channelNum: int):
+        pass
+        # TODO: implement
+
+    def calibOrigin(self):
+        """User moves the stage then that position is set as origin
         """
         # NOTE: Since (0, 0) is bottom right, stage up => y decreases, stage left => x decreases
 
-        self.writeRead("G,0,0", isMoveCmd=True) # Move to origin
+        # self.writeRead("G,0,0", isMoveCmd=True) # Move to origin
+        # NOTE: now, have user use joystick to move stage to real origin
         self.writeRead("P,0,0,0")  # Redefine this location as origin
         # NOTE: Prior advises that SIS only be used upon first installation, possibly avoid
+        # TODO: bring back SIS possibly
+
+    def moveToOrigin(self):
+        self.writeRead("G,0,0", isMoveCmd=True) # Move to origin
 
     # Set coordinates for well A1 on stage
     # Again, we justify that the "stage" encapsulates the actual microscope stage + well/chip on top of it
@@ -92,7 +120,7 @@ class Stage:
         stagePos = self.getStageXY()
         self.firstChannelCamPos = tuple(stagePos)
 
-    def moveToChannelCam(self, chanNum: int):
+    def moveChannelToCam(self, chanNum: int):
         """Move specified channel under camera
 
         :param chanNum: Channel number
