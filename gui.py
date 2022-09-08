@@ -1,0 +1,588 @@
+import tkinter as tk
+import sys
+sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
+
+from tkinter import ttk
+from tkinter import messagebox
+from time import sleep
+from threading import Thread
+# from microscopeDriver import MicroscopeDriver
+from gui_widgets.camWidget import CamWidget
+from gui_widgets.wellSelect import WellSelect
+
+# from microscopeDriver import MicroscopeDriver
+
+# driver: MicroscopeDriver = None
+DISABLE_BUTTONS = []  # list of buttons that should be disabled for most commands
+STARTUP_DISABLED_BUTTONS = [] # list of buttons that should be disabled before startup, enabled once startup succeeds
+
+interruptBtn: ttk.Button = None # global reference to interrupt button
+# driver: MicroscopeDriver = None # global reference to driver
+
+
+root = tk.Tk()
+# root = ThemedTk(theme='yaru')
+root.title("Automated Single Cell Printing")
+
+# sv_ttk.set_theme("dark")  # Set light theme
+
+s=ttk.Style()
+
+print(s.theme_names())
+s.theme_use('clam')
+# s.configure('TButton', padding=40)
+
+# helper method used to add elements with grid more easily
+def grid(widget, row, col, padx, pady, sticky='nsew'):
+    widget.grid(row=row,column=col, padx=padx, pady=pady, sticky=sticky)
+
+class HighLevel(ttk.LabelFrame):
+    def __init__(self, parent):
+        ttk.LabelFrame.__init__(self, parent, text="High Level")
+        for i in range(6): self.rowconfigure(i, weight=1)
+        self.columnconfigure(0, weight=1)
+
+        # onclick: load all other buttons, disable this forever
+        load_device = self.StartupMenu(self)
+        grid(load_device, 0, 0, 5, 5)
+
+        interruptBtn = ttk.Button(self, text="INTERRUPT")
+        grid(interruptBtn, 1, 0, 5, 5)
+        interruptBtn["state"] = "disabled"
+
+        self.singleToMultiple = SingleToMultiple(self)
+        grid(self.singleToMultiple, 2, 0, 5, 5, sticky='ew')
+
+        self.toK = PrintEachToK(self)
+        grid(self.toK, 3, 0, 5, 5, sticky='ew')
+
+    def interrupt(self):
+        """ sends an interrupt command to the microscope driver"""
+        # TODO: call driver interrupt here
+        pass
+
+    class StartupMenu(ttk.LabelFrame):
+        def __init__(self, parent):
+            ttk.LabelFrame.__init__(self, parent, text="startup menu")
+            for i in range(3):
+                self.rowconfigure(i, weight=1)
+                self.columnconfigure(i, weight=1)
+
+            self.priorLab = ttk.Label(self, text="Prior port")
+            grid(self.priorLab, 0,0,0,0)
+            self.priorEnt = ttk.Entry(self)
+            self.priorEnt.insert(0, "COM6")
+            grid(self.priorEnt, 0,1,0,0)
+            self.ardLab = ttk.Label(self, text="Arduino port")
+            grid(self.ardLab, 1,0,0,0)
+            self.ardEnt = ttk.Entry(self)
+            self.ardEnt.insert(0, "COM7")
+            grid(self.ardEnt, 1,1,0,0)
+
+            startupBtn = ttk.Button(self, text="start up the device", command=self.startUp)
+            startupBtn.grid(row=2, column=0, columnspan=2, stick='nsew')
+            self.items = [self.priorLab, self.priorEnt, self.ardLab, self.ardEnt, startupBtn]
+
+        def startUp(self):
+            """ loads in the device using the given parameters """
+            # TODO: actually load driver here
+            priorP = self.priorEnt.get()
+            ardP = self.ardEnt.get()
+            # try to initialize
+            try:
+                # TODO: actually connect to driver
+                # raise ConnectionError # connect to driver
+                # disable startup stuff, enable all other stuff (need to access other buttons somehow)
+                print("microscope initialized placeholder")
+                for item in STARTUP_DISABLED_BUTTONS: item["state"] = "normal"
+                for item in self.items: item["state"] = "disabled"
+                
+            except ConnectionError as e:
+                # some popup window saying something went wrong
+                messagebox.showwarning(title="conneciton error", message="either COM ports are incorrect or devices are accessed by another resource")
+
+class SingleToMultiple(ttk.LabelFrame):
+    def __init__(self, parent):
+        ttk.Labelframe.__init__(self, parent, text="Print single sample to multiple channels")
+
+        for i in range(4): self.rowconfigure(i, weight=1)
+        self.columnconfigure(0, weight=1)
+
+        s2mEntLabel = ttk.Label(self, text="choose sample", anchor="center")
+        grid(s2mEntLabel, 0, 0, 0, 5, sticky='ew')
+
+        self.s2mWellEntry = ttk.Entry(self)
+        grid(self.s2mWellEntry, 1, 0, 0, 5, sticky='ew')
+
+
+        s2mChanEntLabel = ttk.Label(self, text="list of channels", anchor="center")
+        grid(s2mChanEntLabel, 2, 0, 0, 5, sticky='ew')
+
+        self.s2mChanEntry = ttk.Entry(self)
+        self.s2mChanEntry["state"] = "disabled"
+        grid(self.s2mChanEntry, 3, 0, 0, 5, sticky='ew')
+
+        goBtn = ttk.Button(self, text="start")
+        grid(goBtn, 4, 0, 0,0)
+
+        for child in self.winfo_children(): STARTUP_DISABLED_BUTTONS.append(child)
+
+    #TODO: function to call printing, handling bad input with message box
+
+    def getWellInput():
+        pass
+
+    def getChannelInput():
+        pass
+
+class PrintEachToK(ttk.Labelframe):
+    def __init__(self, parent):
+        ttk.LabelFrame.__init__(self, parent, text="Print Samples to K")
+        for i in range(4): self.rowconfigure(i, weight=1)
+        self.columnconfigure(0, weight=1)
+
+        self.wellSelectOpen = False
+
+        self.openWellsBtn = ttk.Button(self, text="open well select menu", cursor="hand2", command=self.openWellSelectMenu)
+        grid(self.openWellsBtn, 0, 0, 5, 5)
+
+        self.selectedWellsList = ttk.Label(self, text="selected wells:")
+        grid(self.selectedWellsList, 1, 0, 5, 5)
+
+        kLabel = ttk.Label(self, text="number of channels for each sample")
+        grid(kLabel, 2, 0, 5, 5)
+
+        self.kEnt = ttk.Entry(self)
+        grid(self.kEnt, 3, 0, 5, 5)
+
+        goBtn = ttk.Button(self, text="start")
+        grid(goBtn, 4, 0, 0,0)
+
+        for child in self.winfo_children(): STARTUP_DISABLED_BUTTONS.append(child)
+
+    #TODO: function to call printing, handling bad input
+    #TODO: some way to get selected from welLSelect (some array stored in PrintEachToK, pass to wellselect)
+
+    def openWellSelectMenu(self):
+        def on_closing():
+                wellSelectMenu.destroy()
+                self.wellSelectOpen = False
+
+        if not self.wellSelectOpen:
+            wellSelectMenu = tk.Toplevel(root)
+            wellSelectMenu.title("Well Select Menu")
+            grid(WellSelect(wellSelectMenu), 0,0,0,0)
+            # TODO: this also needs buttons to save or cancel selection
+            # grid(wellSelectMenu(wellSelectMenu), 0,0,0,0)
+            # TODO: wellselect save button should close window, put wells in array using WellSelect.getSelected
+            wellSelectMenu.protocol("WM_DELETE_WINDOW", on_closing)
+            self.wellSelectOpen = True
+
+class WellSelectMenu(ttk.Frame):
+    def __init__(self, parent):
+        ttk.LabelFrame.__init__(self, parent)
+        grid(ttk.Label(self, text="this is the well select menu"), 0, 0, 0,0)
+        
+class CalibrationFrame(ttk.LabelFrame):
+    def __init__(self, parent):
+        ttk.LabelFrame.__init__(self, parent, text="Calibration and Sanity checks")
+        for i in range(4): self.rowconfigure(i, weight=1)
+        self.columnconfigure(0, weight=1)
+
+        self.calibOpen = False
+        self.sanityOpen = False
+
+        openCalibMenu = ttk.Button(self, text="open calibration menu", command=self.openCalibMenu)
+        STARTUP_DISABLED_BUTTONS.append(openCalibMenu)
+        grid(openCalibMenu, 0, 0, 5, 5)
+
+        openSanity = ttk.Button(self, text="open sanity check menu", command=self.openSanityMenu)
+        STARTUP_DISABLED_BUTTONS.append(openSanity)
+        grid(openSanity, 1, 0, 5, 5)
+
+        self.calibList = CalibratedList(self)
+        grid(self.calibList, 2, 0, 5, 5)
+
+
+    def openCalibMenu(self):
+        def on_closing():
+            calibMenu.destroy()
+            self.calibOpen = False
+
+        if not self.calibOpen:
+            calibMenu = tk.Toplevel(root)
+            calibMenu.title("Calibration Menu")
+            calibMenu.rowconfigure(0, weight=1)
+            calibMenu.columnconfigure(0, weight=1)
+            grid(CalibrationMenu(calibMenu), 0,0,10,10)
+            calibMenu.protocol("WM_DELETE_WINDOW", on_closing)
+            self.calibOpen = True
+
+    def openSanityMenu(self):
+        def on_closing():
+            sanityMenu.destroy()
+            self.sanityOpen = False
+
+        if not self.sanityOpen:
+            sanityMenu = tk.Toplevel(root)
+            sanityMenu.title("Sanity Check Menu")
+            sanityMenu.rowconfigure(0, weight=1)
+            sanityMenu.columnconfigure(0, weight=1)
+            grid(SanityMenu(sanityMenu), 0, 0, 0, 0)
+            sanityMenu.protocol("WM_DELETE_WINDOW", on_closing)
+            self.sanityOpen = True
+
+class CalibrationMenu(ttk.Frame):
+    def __init__(self, parent):
+        ttk.Frame.__init__(self, parent)
+        for i in range(6): self.rowconfigure(i, weight=1)
+        self.columnconfigure(0, weight=1)
+        self.calibArmBtn = ttk.Button(self, text="recalibrate arm Z axis", command=self.calibArm)
+        grid(self.calibArmBtn, 0, 0, 0, 0)
+        self.resetStageBtn = ttk.Button(self, text="recalibrate stage positioning", command=self.resetStage)
+        grid(self.resetStageBtn, 1, 0, 0, 0)
+        self.firstChanBtn = ttk.Button(self, text="save current position as 'first channel on camera'", command=self.saveFirstChannel)
+        grid(self.firstChanBtn, 2, 0, 0, 0)
+        self.pressureBtn = ttk.Button(self, text="recalibrate pressure system", command=self.recalibratePressureSystem)
+        grid(self.pressureBtn, 3, 0,0,0)
+
+        self.buttons = [self.calibArmBtn, self.resetStageBtn, self.firstChanBtn, self.pressureBtn]
+
+        self.offset = self.OffSetCalibration(self, self.buttons)
+        grid(self.offset, 4, 0, 0,0)
+
+        # TODO : saving 3 pressure values menu
+
+    def calibArm(self):
+        """ recalibrates the z axis arm """
+
+        for btn in self.buttons: btn["state"] = "disabled"
+        self.offset.getStartBtn()["state"] = "disabled"
+
+        def cb():
+            for btn in self.buttons: btn["state"] = "normal"
+            self.offset.getStartBtn()["state"] = "normal"
+
+        def fakeThread(cb): sleep(1); cb()
+        #TODO: call in driver
+
+        # driver.calibrateZArm()
+        # mimic calling driver
+        t=Thread(target=fakeThread, args=[cb])
+        t.start()
+
+    def resetStage(self):
+        """ resets the origin of the stage """
+        for btn in self.buttons: btn["state"] = "disabled"
+        self.offset.getStartBtn()["state"] = "disabled"
+
+        def cb():
+            for btn in self.buttons: btn["state"] = "normal"
+            self.offset.getStartBtn()["state"] = "normal"
+
+        def fakeThread(cb): sleep(1); cb()
+        #TODO: call in driver
+
+        # driver.resetStageOrigin()
+        # mimic calling driver
+        t=Thread(target=fakeThread, args=[cb])
+        t.start()
+
+    def saveFirstChannel(self):
+        """ 
+            saves the position of the stage as the one such that the first channel
+            is in the center of the + on the camera
+        """
+        #TODO: call in driver
+        # driver.saveFirstChannel()
+        pass
+
+    def recalibratePressureSystem(self):
+        """ recalibrates the pressure sytem (make sure you have caps on)"""
+        for btn in self.buttons: btn["state"] = "disabled"
+        self.offset.getStartBtn()["state"] = "disabled"
+
+        def cb():
+            for btn in self.buttons: btn["state"] = "normal"
+            self.offset.getStartBtn()["state"] = "normal"
+
+        def fakeThread(cb): sleep(1); cb()
+
+        # driver.recalibratePressure()
+        # mimic calling driver
+        t=Thread(target=fakeThread, args=[cb])
+        t.start()
+
+    class OffSetCalibration(ttk.LabelFrame):
+        def __init__(self, parent, otherButtons):
+            ttk.LabelFrame.__init__(self, parent, text="Printer Offset")
+            for i in range(5): self.rowconfigure(i, weight=1)
+            self.otherButtons = otherButtons # to disable other calibrations when getting offset
+
+            self.columnconfigure(0, weight=1)
+            self.infoLabel = ttk.Label(self, text="press start to begin", background="blue")
+            grid(self.infoLabel, 0, 0,0 ,0 )
+            # disable all other buttons, pop up message saying "please move printer over waste slide, then hit print drop"
+            self.startBtn = ttk.Button(self, text="start", command= self.startOffset)
+            grid(self.startBtn, 1, 0,0 ,0)
+
+            # print drop, save position, udpate message to "please move drop into + of camera"
+            self.printBtn = ttk.Button(self, text="print drop", command=self.printDrop)
+            grid(self.printBtn, 2, 0,0 ,0)
+            self.printBtn["state"] = "disabled"
+            # drop in cross, save position, then we're done
+            self.focusBtn = ttk.Button(self, text="drop in center of +, save offset", command=self.dropFocused)
+            grid(self.focusBtn, 3, 0, 0 ,0)
+            self.focusBtn["state"] = "disabled"
+
+            # abort button to stop the calibration if you want
+            self.abortBtn = ttk.Button(self, text="abort offset calibration", command=self.abort)
+            grid(self.abortBtn, 4, 0 ,0 ,0)
+            self.abortBtn["state"] = "disabled"
+
+            self.printLoc = (None, None)
+
+        def getStartBtn(self): 
+            return self.startBtn
+            
+        def startOffset(self):
+            """ disable all other calib GUI buttons, enable print drop button, enable abort"""
+            # TODO: also disable all other calibration buttons
+            for btn in self.otherButtons: btn["state"] = "disabled"
+            self.abortBtn["state"] = "normal"
+            self.printBtn["stat"] = "normal"
+            self.startBtn["state"] = "disabled"
+            self.infoLabel.config(text="please move waste slide under printer, then hit \" print drop \"")
+
+        def printDrop(self):
+            """ print, save position of stage at time of printing """
+            def cb():
+                # self.printLoc = driver.getStageXY()
+                self.printBtn["state"] = "disabled"
+                self.focusBtn["state"] = "normal"
+                self.infoLabel.config(text="please move drop into cross on camera")
+            cb() # placeholder for now
+
+            # driver.print()
+                # move head down
+                # apply voltage 
+                # move head up
+                
+        def dropFocused(self):
+            """ get location compute difference, store that in stage, re-enable all GUI buttons"""
+            # TODO: also re-enable all other calibration buttons
+            # focusLoc = driver.getStageXY()
+            # driver.saveOffset (self.printLoc - focusLoc)
+            self.startBtn["state"] = "normal"
+            self.focusBtn["state"] = "disabled"
+            self.infoLabel.configure(text="done! Press start to recalibrate")
+            self.abortBtn["state"] = "disabled"
+            for btn in self.otherButtons: btn["state"] = "normal"
+
+        def abort(self):
+            """ wipe self.dropLoc, enable start, disable everything else, including abort"""
+            # TODO: also re-enable all other calibration buttons
+            self.printLoc = (None, None)
+
+            self.startBtn["state"] = "normal"
+            self.printBtn["state"] = "disabled"
+            self.focusBtn["state"] = "disabled"
+            self.abortBtn["state"] = "disabled"
+
+            self.infoLabel.configure(text="Aborted. Press start to recalibrate")
+            for btn in self.otherButtons: btn["state"] = "normal"
+
+class SanityMenu(ttk.Frame):
+    def __init__(self, parent):
+        ttk.Frame.__init__(self, parent)
+        for i in range(3): self.rowconfigure(i, weight=1)
+        self.columnconfigure(0, weight=1)
+        self.sanity_buttons = []
+
+        overWell = self.OverWell(self, self.sanity_buttons)
+        grid(overWell, 0,0,0,0)
+
+        overChannel = self.OverChannel(self, self.sanity_buttons)
+        grid(overChannel, 1,0,0,0)
+
+        grabSample = self.GrabSample(self, self.sanity_buttons)
+        grid(grabSample,2,0,0,0)
+        
+    class OverWell(ttk.LabelFrame):
+        def __init__(self, parent, buttons):
+            ttk.LabelFrame.__init__(self, parent, text="Test head above well")
+            for i in range(2): 
+                self.rowconfigure(i, weight=1)
+                self.columnconfigure(i, weight=1)
+
+            self.sanity_buttons = buttons
+
+            wellLab = ttk.Label(self, text="Select well: (ex: A1)")
+            grid(wellLab, 0,0,0,0)
+
+            wellEnt = ttk.Entry(self)
+            grid(wellEnt,0,1,0,0)
+
+            goBtn = ttk.Button(self, text="go above well")
+            goBtn.grid(row=1,column=0, columnspan=2)
+
+            for child in self.winfo_children(): self.sanity_buttons.append(child)
+
+    class OverChannel(ttk.LabelFrame):
+        def __init__(self, parent, buttons):
+            ttk.LabelFrame.__init__(self, parent, text="Test head above channel")
+            for i in range(2): 
+                self.rowconfigure(i, weight=1)
+                self.columnconfigure(i, weight=1)
+
+            self.sanity_buttons = buttons
+
+            chanLab = ttk.Label(self, text="Select channel: (ex: 22)")
+            grid(chanLab, 0,0,0,0)
+
+            chanEnt = ttk.Entry(self)
+            grid(chanEnt,0,1,0,0)
+
+            goBtn = ttk.Button(self, text="go above channel")
+            goBtn.grid(row=1,column=0, columnspan=2)
+
+            for child in self.winfo_children(): self.sanity_buttons.append(child)
+
+    class GrabSample(ttk.LabelFrame):
+        def __init__(self, parent, buttons):
+            ttk.LabelFrame.__init__(self, parent, text="Test Grabbing a Sample")
+            for i in range(2): 
+                self.rowconfigure(i, weight=1)
+                self.columnconfigure(i, weight=1)
+
+            self.sanity_buttons = buttons
+
+            wellLab = ttk.Label(self, text="Select well: (ex: A1)")
+            grid(wellLab, 0,0,0,0)
+
+            wellEnt = ttk.Entry(self)
+            grid(wellEnt,0,1,0,0)
+
+            goBtn = ttk.Button(self, text="get sample from well")
+            goBtn.grid(row=1,column=0, columnspan=2)
+
+            for child in self.winfo_children(): self.sanity_buttons.append(child)
+
+class CalibratedList(ttk.LabelFrame):
+    def __init__(self, parent):
+        ttk.LabelFrame.__init__(self, parent, text="Calibration Status")
+
+        self.CALIBRATED = "calibrated"
+        self.NOT_CALIBRATED = "not calibrated"
+        self.LOADED = "loaded from previous run"
+
+        self.calibrations = {}
+        self.calibrations["arm"] = ttk.Label(self, text=f"arm: {self.NOT_CALIBRATED}", background="red")
+        self.calibrations["arm"].pack(expand=True, fill='both')
+
+        self.calibrations["stage"] = ttk.Label(self, text=f"stage: {self.LOADED}", background="orange")
+        self.calibrations["stage"].pack(expand=True, fill='both')
+
+        self.calibrations["printer offset"] = ttk.Label(self, text=f"printer offset: {self.LOADED}", background="orange")
+        self.calibrations["printer offset"].pack(expand=True, fill='both')
+
+        self.calibrations["first channel"] = ttk.Label(self, text=f"first channel: {self.LOADED}", background="orange")
+        self.calibrations["first channel"].pack(expand=True, fill='both')
+
+        self.calibrations["first well"] = ttk.Label(self, text=f"first well: {self.LOADED}", background="orange")
+        self.calibrations["first well"].pack(expand=True, fill='both')
+
+        self.calibrations["pressures"] = ttk.Label(self, text=f"pressures: {self.LOADED}", background="orange")
+        self.calibrations["pressures"].pack(expand=True, fill='both')
+
+        for child in self.winfo_children(): STARTUP_DISABLED_BUTTONS.append(child)
+
+
+class AdditionalCommands(ttk.LabelFrame):
+    def __init__(self, parent):
+        ttk.LabelFrame.__init__(self, parent, text="Additional Commands")
+        for i in range(6): self.rowconfigure(i, weight=1)
+        self.columnconfigure(0, weight=1)
+
+        self.camOpen = False
+        self.chanOpen = False
+
+        grid(FocusChannel(self), 0, 0,0,0)
+
+        showCamBtn = ttk.Button(self, text="open camera display", command=self.openCamera)
+        grid(showCamBtn, 1, 0, 0, 0)
+
+        cleanHeadBtn = ttk.Button(self, text="clean the printer head")
+        STARTUP_DISABLED_BUTTONS.append(cleanHeadBtn)
+        grid(cleanHeadBtn, 2, 0 ,0 ,0)
+
+        showChannelContents = ttk.Button(self, text="show channel contents", command = self.openChannels)
+        grid(showChannelContents, 3, 0, 0, 0)
+
+    def openCamera(self):
+        def on_closing():
+            cameraWin.destroy()
+            self.camOpen = False
+
+        if not self.camOpen:
+            cameraWin = tk.Toplevel(root)
+            cameraWin.title("Camera Display")
+            grid(CamWidget(cameraWin), 0,0,0,0)
+            cameraWin.protocol("WM_DELETE_WINDOW", on_closing)
+            self.camOpen = True
+
+    def openChannels(self):
+        def on_closing():
+            chanWin.destroy()
+            self.chanOpen = False
+
+        if not self.chanOpen:
+            chanWin = tk.Toplevel(root)
+            chanWin.title("Channel Contents")
+            grid(ChannelContents(chanWin), 0,0,0,0)
+
+            chanWin.protocol("WM_DELETE_WINDOW", on_closing)
+            self.chanOpen = True
+
+class ChannelContents(ttk.Frame):
+    def __init__(self, parent):
+        ttk.Frame.__init__(self, parent)
+        grid(ttk.Label(self, text="this is a placeholder for channel contents popup"), 0 ,0,0,0)
+        #TODO: make a good channel contents widget
+
+    
+class FocusChannel(ttk.LabelFrame):
+    def __init__(self, parent):
+        ttk.LabelFrame.__init__(self, parent, text="Show Channel on camera")
+        self.rowconfigure(0, weight=1)
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=1)
+
+        self.chanEnt = ttk.Entry(self)
+        STARTUP_DISABLED_BUTTONS.append(self.chanEnt)
+        grid(self.chanEnt, 0, 0, 0, 0)
+
+        goBtn = ttk.Button(self, text="focus")
+        STARTUP_DISABLED_BUTTONS.append(goBtn)
+        grid(goBtn, 0,1,0,0)
+    
+    # TODO: call focus channel in driver
+        
+
+root.grid_columnconfigure(0, weight=1)
+root.grid_columnconfigure(1, weight=1)
+root.grid_rowconfigure(0, weight=1)
+root.grid_rowconfigure(1, weight=1)
+
+hl = HighLevel(root)
+hl.grid(row=0, column=1, rowspan=2, sticky='nsew', padx=5, pady=5)
+
+calib = CalibrationFrame(root)
+grid(calib, 0, 0, 5, 5)
+
+additional = AdditionalCommands(root)
+grid(additional,1,0,5,5)
+
+for item in STARTUP_DISABLED_BUTTONS: item["state"] = "disabled"
+
+root.mainloop()
