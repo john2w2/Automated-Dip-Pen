@@ -78,11 +78,6 @@ class ZMotor:
         self.stepper = Stepper(screw=self.screw, stepsPerRev=stepsPerRev)
         self.arduino = arduinoController
 
-        # TODO: you have to wait?
-        time.sleep(2)
-        # TODO: calibration step - talk to arudino, wait for something back
-        # arduino gets reset
-
     def calibrateOrigin(self):
         """Move arm until it hits topmost limit switch, saves that position as origin
         """

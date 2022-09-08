@@ -7,8 +7,6 @@
 #define yStep 3
 int microstep = 8;
 
-
-
 ezButton topLimit(12);
 ezButton bottomLimit(13);
 
@@ -23,7 +21,8 @@ void setup() {
   Serial.begin(115200);
   topLimit.setDebounceTime(50);
   bottomLimit.setDebounceTime(50);
-  delay(1000); // some delay so driver has time to wake up (I saw this online IDK what it means but I think it's important)
+  delay(1000); // some delay so stepper drivers have time to wake up (I saw this online IDK what it means but I think it's important)
+  Serial.println("arduino ready");
 }
 
 // replacement for library command to take a step

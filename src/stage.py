@@ -1,7 +1,8 @@
 import serial
+import string
+
 from plate import *
 from chip import *
-import time
 
 class Stage:
     """
@@ -36,6 +37,7 @@ class Stage:
         # TODO: for convenience right now, change later  - let files be loaded in
         self.firstWellPos = (-2147477, -293671)
         self.firstChannelCamPos = (-2016268, -1409635)
+        # TODO: also load in printer offset values 
 
         self.stepSize = stepSize
 
@@ -48,8 +50,7 @@ class Stage:
         # NOTE: we used to have self.plateInitX, plateInitY
         # We should standardize that initial reference well is A1, since there is no guarantee which well plate is being used
         # At least we know for any well plate, A1 exists
-
-    
+        
     def calibPrinterOffset(self, offsetX: int, offsetY: int):
         """
         Saves the offset of the printer head
@@ -69,8 +70,17 @@ class Stage:
         self.offset = (offsetX, offsetY)
 
     def moveChannelToPrinter(self, channelNum: int):
-        pass
-        # TODO: implement
+        """Moves channelNum under the printer
+
+        :param channelNum: the number of the channel to move under the printer head
+        :type channelNum: int
+        """
+        # gives y position of stage such that channelNum channel is focused on + of camera
+        channelY = self.firstChannelCamPos[1] - ((channelNum - 1) * self.chanStepSize)
+            
+        # add offset to move channel from focused on + to directly under printer head
+        cmd = f"G,{self.firstChannelCamPos[0] + self.offset[0]}, {channelY + self.offset[1]}\r"
+        self.writeRead(cmd, isMoveCmd=True)
 
     def calibOrigin(self):
         """User moves the stage then that position is set as origin
@@ -100,6 +110,9 @@ class Stage:
         :param well: ID of well. Format = row,column
         :type well: str
         """
+        # convert to row,col if not in that format
+        if not "," in well: well = self.wellIDToRowCol(well)
+
         if self.isRealWell(well):
             well = well.split(",")
             row = int(well[0])
@@ -209,6 +222,19 @@ class Stage:
             return False
         return True
 
+
+    def wellIDToRowCol(self, wellID: str) -> str:
+        """Converts a wellID in the format "A1" to 
+        a row,col format: 1,1
+
+        :param wellID: String representing ID of the well
+        :type wellID: str
+        :return: a string in the format (row,col)
+        :rtype: str
+        """
+        row = string.ascii_uppercase.index(wellID[0]) + 1
+        col = int(wellID[1:])
+        return f"{row},{col}"
 
     # ======================================== #
     # Raw Stage Movement Commands              #
