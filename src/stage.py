@@ -322,6 +322,7 @@ class Stage:
                     except:
                         print("file is not formatted correctly, using default values")
                         self.__makeDefOffsetFile(pathToData=offsetPath)
+
     def restoreDefaultOffset(self):
         """
         Loads and stores the default printer offset values
@@ -384,6 +385,20 @@ class Stage:
         calibPath = os.path.join(parentDir, 'calibrationFiles')
         channelPath = os.path.join(calibPath, 'firstChannel.txt')
 
+        if not os.path.exists(calibPath):
+            # calibration folder doesn't exist
+            os.makedirs(calibPath)
+            self.__makeDefFirstChannelFile(pathToData=channelPath)
+        else:
+            if not os.path.exists(channelPath):
+                # calibration folder exists, but file holding channel values doesn't
+                self.__makeDefOffsetFile(pathToData=channelPath)
+            else:
+                # the first channel calibration file and exists
+                with open(channelPath, 'r+') as f:
+                    line1 = f.readline()
+                
+
     def restoreDefaultFirstChannel(self):
         """
         Resets the stored first channel location, storing the 
@@ -418,7 +433,8 @@ class Stage:
             f.write(f"{str(x)}\n")
             f.write(str(y))
 
-    def __makeDefFirstChannelFile(self, pathToData: str, defaultX: int = -1635268, defaultY: int = -1537768):
+    # NOTE: can change these defaults in the future
+    def __makeDefFirstChannelFile(self, pathToData: str, defaultX: int = -2016268, defaultY: int = -1409635):
         """
         Helper method to create / overwrite the stored first channel location with default values.
         Also loads those default values into the stage

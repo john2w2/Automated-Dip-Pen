@@ -2,7 +2,7 @@ import serial
 import time
 
 class Voltage:
-    def __init__(self, port="COM8"):
+    def __init__(self, port="COM6"):
         self.ser = serial.Serial(port=port, baudrate=9600, timeout=0.1)
 
     def print(self):
