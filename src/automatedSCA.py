@@ -55,11 +55,11 @@ class AutomatedSCA:
                 self.arm: Arm = Arm(arduinoPort=arduinoPort)
             except ConnectionError as err:
                 self.priorController.close()
-                raise ConnectionError(err) 
+                raise ConnectionError(err)
 
         except ConnectionError as err:
             raise ConnectionError(err)
-        
+
         # TODO: still on the fence about whether or not to run calibrateArm on startup
         # self.calibrateArm()
         # TODO: put all calibration stuff here later
@@ -100,7 +100,7 @@ class AutomatedSCA:
         Moves the printer head into a well, assuming the stage
         had already positioned the printer ehad over the well
         """
-        self.arm.moveZWellPos()    
+        self.arm.moveZWellPos()
 
 
     def movePrinterOverWell(self, wellID: str):
@@ -126,12 +126,12 @@ class AutomatedSCA:
 
     def movePrinterDownToChannel(self):
         """
-        moves the head down to it's above-channel position 
+        moves the head down to it's above-channel position
         Does not move on the xy plane, must be over the chip
         or will probably break
         """
-        self.arm.moveZChannelPos() 
-        
+        self.arm.moveZChannelPos()
+
     def moveToChannelNoLift(self, channelNum:int):
         """unsafe function
         Moves the printer head above the specified channel
@@ -169,13 +169,13 @@ class AutomatedSCA:
         """
 
         self.chip.fillChannel(channelNum, self.currentSample)
-        # self.printer.print() 
+        # self.printer.print()
         raise NotImplementedError("printer head not implemented yet")
-    
+
     def suckInSample(self, wellID: str):
         """
         Sucks in the sample that the printer head
-        is submerged in, storing that sample as the 
+        is submerged in, storing that sample as the
         microscope's current sample
         Assumes that the printer head is submerged in wellID
         :param wellID: the sample the head is submerged in
@@ -188,7 +188,7 @@ class AutomatedSCA:
     def blowOutSample(self):
         """
         Applies a positive pressure, dispensing all of the currently
-        held sample. 
+        held sample.
         """
         # self.printer.dispenseAll()
         # self.currentSample = "dirty" ???
@@ -200,10 +200,10 @@ class AutomatedSCA:
     # ======================================= #
 
     def moveToSafePositions(self):
-        #TODO: add a function in movement/arm to move up to a 
+        #TODO: add a function in movement/arm to move up to a
         # much higher (safer) position than the default up position
         """
-        Moves the printer arm to its up position and 
+        Moves the printer arm to its up position and
         moves the stage such that the first well is under the printer
         This is intended to be issued after an interrupt command to
         put the device in some "safe" state where the needle can't be broken
@@ -225,7 +225,7 @@ class AutomatedSCA:
         self.priorController.close()
         # self.pressure.close()
 
-    def getEmptyChannels(self) -> list[int]:
+    def getEmptyChannels(self):
         """
         TODO: implement in Chip class?
         returns a list of channels that have not had anything printed to them
@@ -234,7 +234,7 @@ class AutomatedSCA:
         # NOTE: probably a better way to do this
         emptyChannels: list[int] = []
         for i in range(1, self.chip.numChan + 1): # 1-based channel indexing
-            content = self.chip.getChannelContents(i) 
+            content = self.chip.getChannelContents(i)
             if (content == self.chip.CHAN_EMPTY):
                 emptyChannels.append(i)
         return emptyChannels
@@ -264,18 +264,18 @@ class AutomatedSCA:
         Resets the 0,0 position of stage
         """
         self.stage.calibOrigin()
-        
+
     def savePrinterDropOffset(self, offsetX: int, offsetY: int):
         """
         Saves the offset of the printer head
         Offset values come from GUI calibration method
 
-        :param offsetX: distance (in steps) stage has to move to put first 
+        :param offsetX: distance (in steps) stage has to move to put first
             channel under printer head, starting from first channel
             being focused on cross of camera (along x axis)
             offsetX = printerDropX - focusedDropX
         :type offsetX: int
-        :param offsetY: distance (in steps) stage has to move to put first 
+        :param offsetY: distance (in steps) stage has to move to put first
             channel under printer head, starting from first channel
             being focused on cross of camera (along x axis)
             offsetY = printerDropY - focusedDropY
@@ -317,4 +317,3 @@ class AutomatedSCA:
         and the pressure to maintain equilibrium (holding fluid in place)
         """
         raise NotImplementedError("pressure system not implemented yet")
-       
