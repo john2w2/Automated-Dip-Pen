@@ -1,11 +1,15 @@
 import serial
 
 from stepper import ZMotor
+from time import sleep # for waiting for priorController to start up
 
 class Arm:
     # TODO: later, pass in YMotor
     def __init__(self, arduinoPort): # TODO: pass in arduinoController here
+        # since serial connection made here, we will wait for it to be ready here as well
         self.arduinoController = serial.Serial(port=arduinoPort, baudrate=115200, timeout=0.1)
+        self.waitForReady(self.arduinoController)
+
         self.zmotor = ZMotor(arduinoController=self.arduinoController)
 
     def calibrateOrigin(self):
@@ -46,3 +50,8 @@ class Arm:
 
     def close(self):
         self.arduinoController.close()
+
+    def waitForReady(self, arduinoController: serial.Serial):
+        while not arduinoController.in_waiting:
+            sleep(0.01)
+        arduinoController.readline() # consumes first line, which should be 'arduino ready\r\n'     

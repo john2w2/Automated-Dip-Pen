@@ -1,7 +1,10 @@
+from audioop import cross
 import pymmcore
 import os.path
-import cv2 as cv
 import numpy as np
+
+from skimage.transform import resize # necessary if we want to resize without opencv
+from skimage.draw import line_aa # can draw lines with this instead of cv
 
 class Camera:
     def __init__(self):
@@ -17,7 +20,7 @@ class Camera:
         self.mmc.snapImage()
         img = self.mmc.getImage()
         img = self.contrastImage(img)
-        img = (cv.resize(img, (img.shape[1] // 2, img.shape[0] // 2)))
+        img = (resize(img, (401, 601), preserve_range=True))
         return img
 
     def contrastImage(self, img):
@@ -39,8 +42,23 @@ class Camera:
             self.rMax = self.rMax * 0.9 + 0.1 * np.max(img)
         return np.clip((((img - self.rMin) / (self.rMax - self.rMin)) * 255).astype(np.uint8), 0, 255)
 
-    def drawCross(self, img):
+    def drawCross(self, img) -> np.array:
+        """Draws a cross on a copy img, not modifying the original image 
+
+        :param img: the image to draw a cross on
+        :type img: m x n matrix
+        :return: m x n matrix with a cross drawn on the center
+        :rtype: np.array
+        """
+        imCopy = np.matrix.copy(img)
         numRows = img.shape[0]
-        numCol = img.shape[1]
-        cv.line(img, (3 * (numCol // 8), numRows//2), (5 * (numCol // 8), numRows//2), 255, thickness=1) # TODO: color value?
-        cv.line(img, (numCol//2,3 * (numRows // 8)), (numCol//2, 5 * (numRows // 8)), 255, thickness=1)
+        numCols = img.shape[1]
+
+        # make cross same length along each axis
+        crossLen = min(numRows // 5, numCols // 5)
+        rv, cv, valv = line_aa( numRows // 2 - crossLen // 2 , numCols // 2, numRows // 2 + crossLen // 2 , numCols // 2)
+        rh, ch, valh = line_aa(numRows // 2, numCols // 2 - crossLen //2, numRows // 2, numCols // 2 + crossLen // 2)
+
+        imCopy[rv,cv] = valv * 255
+        imCopy[rh,ch] = valh * 255
+        return imCopy
