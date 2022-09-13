@@ -6,7 +6,7 @@ from time import sleep
 from tkinter import ttk
 from threading import *
 # from gui_widgets.guiCamera import GUICamera
-from src.camera import Camera
+from camera import Camera
 
 from PIL import ImageTk, Image
 from tkinter import messagebox

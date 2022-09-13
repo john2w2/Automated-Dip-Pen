@@ -6,13 +6,13 @@ from tkinter import ttk
 from tkinter import messagebox
 from time import sleep
 from threading import Thread
-# from microscopeDriver import MicroscopeDriver
+from microscopeDriver import MicroscopeDriver
 from gui_widgets.camWidget import CamWidget
 from gui_widgets.wellSelect import WellSelect
 
 # from microscopeDriver import MicroscopeDriver
 
-# driver: MicroscopeDriver = None
+driver: MicroscopeDriver = None
 DISABLE_BUTTONS = []  # list of buttons that should be disabled for most commands
 STARTUP_DISABLED_BUTTONS = [] # list of buttons that should be disabled before startup, enabled once startup succeeds
 
@@ -28,9 +28,7 @@ root.title("Automated Single Cell Printing")
 
 s=ttk.Style()
 
-print(s.theme_names())
-s.theme_use('clam')
-# s.configure('TButton', padding=40)
+# s.theme_use('clam')
 
 # helper method used to add elements with grid more easily
 def grid(widget, row, col, padx, pady, sticky='nsew'):
@@ -42,9 +40,15 @@ class HighLevel(ttk.LabelFrame):
         for i in range(6): self.rowconfigure(i, weight=1)
         self.columnconfigure(0, weight=1)
 
+        self.startupOpen = False
+
+        startupButton = ttk.Button(self, text="open startup menu", command=self.openStartup)
+        grid(startupButton, 0, 0, 5, 5)
+
+
         # onclick: load all other buttons, disable this forever
-        load_device = self.StartupMenu(self)
-        grid(load_device, 0, 0, 5, 5)
+        # load_device = self.StartupMenu(self)
+        # grid(load_device, 0, 0, 5, 5)
 
         interruptBtn = ttk.Button(self, text="INTERRUPT")
         grid(interruptBtn, 1, 0, 5, 5)
@@ -56,44 +60,92 @@ class HighLevel(ttk.LabelFrame):
         self.toK = PrintEachToK(self)
         grid(self.toK, 3, 0, 5, 5, sticky='ew')
 
+    def openStartup(self):
+        def on_closing():
+            startupMenu.destroy()
+            self.startupOpen = False
+
+        if not self.startupOpen:
+            startupMenu = tk.Toplevel(root)
+            startupMenu.title("Startup Menu")
+
+            # TODO: widget goes here
+            grid(self.StartupMenu(startupMenu), 0,0,0,0)
+
+            startupMenu.protocol("WM_DELETE_WINDOW", on_closing)
+            self.startupOpen = True
+
+
     def interrupt(self):
         """ sends an interrupt command to the microscope driver"""
         # TODO: call driver interrupt here
         pass
 
-    class StartupMenu(ttk.LabelFrame):
+    class StartupMenu(ttk.Frame):
+        # TODO: make this a pop-out window
         def __init__(self, parent):
-            ttk.LabelFrame.__init__(self, parent, text="startup menu")
+            ttk.LabelFrame.__init__(self, parent)
             for i in range(3):
                 self.rowconfigure(i, weight=1)
                 self.columnconfigure(i, weight=1)
 
-            self.priorLab = ttk.Label(self, text="Prior port")
+            portFrame = ttk.LabelFrame(self, text="COM ports")
+            self.priorLab = ttk.Label(portFrame, text="Prior port")
             grid(self.priorLab, 0,0,0,0)
-            self.priorEnt = ttk.Entry(self)
+            self.priorEnt = ttk.Entry(portFrame)
             self.priorEnt.insert(0, "COM6")
             grid(self.priorEnt, 0,1,0,0)
-            self.ardLab = ttk.Label(self, text="Arduino port")
+            self.ardLab = ttk.Label(portFrame, text="Arduino port")
             grid(self.ardLab, 1,0,0,0)
-            self.ardEnt = ttk.Entry(self)
+            self.ardEnt = ttk.Entry(portFrame)
             self.ardEnt.insert(0, "COM7")
             grid(self.ardEnt, 1,1,0,0)
+            grid(portFrame, 0,0,5,5)
+
+
+            plateFrame = ttk.LabelFrame(self, text="Plate")
+            self.wellSize = tk.StringVar()
+            dd = ttk.OptionMenu(plateFrame, self.wellSize, "96 wells", "6 wells" , "96 wells", "384 wells")
+            dd.pack(expand=True, fill="both")
+            grid(plateFrame, 1, 0, 5, 5)
+
+            chipFrame = ttk.LabelFrame(self, text="Chip Parameters")
+
+            numChanLab = ttk.Label(chipFrame, text="Number of channels")
+            self.numChanEnt = ttk.Entry(chipFrame)
+            self.numChanEnt.insert(0, "40")
+
+            grid(numChanLab, 0, 0, 5, 5)
+            grid(self.numChanEnt, 0, 1, 5, 5)
+
+            chanDistLab = ttk.Label(chipFrame, text="Distance between centers \n of adjacent channels (um)")
+            self.chanDistEnt = ttk.Entry(chipFrame)
+            self.chanDistEnt.insert(0, "260")
+
+            grid(chanDistLab, 1, 0, 5, 5)
+            grid(self.chanDistEnt, 1, 1, 5, 5)
+
+            grid(chipFrame, 2, 0, 5, 5)
 
             startupBtn = ttk.Button(self, text="start up the device", command=self.startUp)
-            startupBtn.grid(row=2, column=0, columnspan=2, stick='nsew')
+            startupBtn.grid(row=3, column=0, columnspan=2, stick='nsew')
             self.items = [self.priorLab, self.priorEnt, self.ardLab, self.ardEnt, startupBtn]
 
         def startUp(self):
-            """ loads in the device using the given parameters """
-            # TODO: actually load driver here
+            """ loads in the device using the specified parameters """
+            # TODO: check if these are valid
             priorP = self.priorEnt.get()
             ardP = self.ardEnt.get()
+            plateSize = self.wellSize.get()
+            numChan = self.numChanEnt.get()
+            chanDist = self.chanDistEnt.get()
             # try to initialize
             try:
+                global driver
+                driver = MicroscopeDriver(priorPort=priorP, arduinoPort=ardP)                
                 # TODO: actually connect to driver
                 # raise ConnectionError # connect to driver
                 # disable startup stuff, enable all other stuff (need to access other buttons somehow)
-                print("microscope initialized placeholder")
                 for item in STARTUP_DISABLED_BUTTONS: item["state"] = "normal"
                 for item in self.items: item["state"] = "disabled"
                 
@@ -171,6 +223,7 @@ class PrintEachToK(ttk.Labelframe):
         if not self.wellSelectOpen:
             wellSelectMenu = tk.Toplevel(root)
             wellSelectMenu.title("Well Select Menu")
+            # NOTE: WellSelect is an imported class
             grid(WellSelect(wellSelectMenu), 0,0,0,0)
             # TODO: this also needs buttons to save or cancel selection
             # grid(wellSelectMenu(wellSelectMenu), 0,0,0,0)
@@ -178,11 +231,6 @@ class PrintEachToK(ttk.Labelframe):
             wellSelectMenu.protocol("WM_DELETE_WINDOW", on_closing)
             self.wellSelectOpen = True
 
-class WellSelectMenu(ttk.Frame):
-    def __init__(self, parent):
-        ttk.LabelFrame.__init__(self, parent)
-        grid(ttk.Label(self, text="this is the well select menu"), 0, 0, 0,0)
-        
 class CalibrationFrame(ttk.LabelFrame):
     def __init__(self, parent):
         ttk.LabelFrame.__init__(self, parent, text="Calibration and Sanity checks")
@@ -575,13 +623,13 @@ root.grid_rowconfigure(0, weight=1)
 root.grid_rowconfigure(1, weight=1)
 
 hl = HighLevel(root)
-hl.grid(row=0, column=1, rowspan=2, sticky='nsew', padx=5, pady=5)
+hl.grid(row=0, column=0, rowspan=2, sticky='nsew', padx=5, pady=5)
 
 calib = CalibrationFrame(root)
-grid(calib, 0, 0, 5, 5)
+grid(calib, 0, 1, 5, 5)
 
 additional = AdditionalCommands(root)
-grid(additional,1,0,5,5)
+grid(additional,1,1,5,5)
 
 for item in STARTUP_DISABLED_BUTTONS: item["state"] = "disabled"
 

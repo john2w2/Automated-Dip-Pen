@@ -257,6 +257,7 @@ class AutomatedSCA:
         self.arm.calibrateOrigin()
 
     def resetStageOrigin(self):
+        # TODO: set current position of stage as 0,0 (assuming user moved to bottom right)
         """
         Resets the 0,0 position of stage
         """
