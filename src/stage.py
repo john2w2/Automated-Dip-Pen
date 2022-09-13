@@ -338,13 +338,13 @@ class Stage:
     #                 line1 = f.readline()  # can be None
     #                 line2 = f.readline()  # can be None
 
-                    try:  # this will fail if formatting was bad
-                        # if any formatting error, it will happen here
-                        offsets = (int(line1), int(line2))
-                        self.printerOffset = offsets
-                    except:
-                        print("file is not formatted correctly, using default values")
-                        self.__makeDefOffsetFile(pathToData=offsetPath)
+                    # try:  # this will fail if formatting was bad
+                    #     # if any formatting error, it will happen here
+                    #     offsets = (int(line1), int(line2))
+                    #     self.printerOffset = offsets
+                    # except:
+                    #     print("file is not formatted correctly, using default values")
+                    #     self.__makeDefOffsetFile(pathToData=offsetPath)
 
     # def restoreDefaultOffset(self):
     #     """
@@ -373,10 +373,10 @@ class Stage:
     #     if not os.path.exists(calibPath):
     #         os.makedirs(calibPath)
 
-        with open(offsetPath, 'w+') as f:
-            self.printerOffset = (newX, newY)
-            f.write(f"{str(newX)}\n")
-            f.write(str(newY))
+        # with open(offsetPath, 'w+') as f:
+        #     self.printerOffset = (newX, newY)
+        #     f.write(f"{str(newX)}\n")
+        #     f.write(str(newY))
 
     # def __makeDefOffsetFile(self, pathToData, defaultX: int = -50000, defaultY: int = -50000):
     #     """
@@ -385,12 +385,12 @@ class Stage:
 
     #     TODO: get more accurate default offset values
 
-        :param pathToData: path to the file in which offset values are stored
-        :type pathToData: str
-        :param defaultX: default X offset, defaults to -50000
-        :type defaultX: int, optional
-        :param defaultY: default Y offset, defaults to -50000
-        :type defaultY: int, optional
+        # :param pathToData: path to the file in which offset values are stored
+        # :type pathToData: str
+        # :param defaultX: default X offset, defaults to -50000
+        # :type defaultX: int, optional
+        # :param defaultY: default Y offset, defaults to -50000
+        # :type defaultY: int, optional
         """
         self.printerOffset = (defaultX, defaultY)
 
