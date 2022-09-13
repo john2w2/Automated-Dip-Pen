@@ -4,6 +4,7 @@ from plate import Plate
 from chip import Chip
 from arm import Arm
 from stage import Stage
+from printerHead import PrinterHead
 # from printer import Printer
 
 class AutomatedSCA:
@@ -33,11 +34,10 @@ class AutomatedSCA:
         :type arduinoPort: str, optional
         :raises ConnectionError: when unable to connect to a device
         """
+        # TODO: don't hardcode numChan, numRows, numCols
         self.chip: Chip = Chip(numChan=40)
         self.plate: Plate = Plate(numRows=8, numCols=12)
 
-        # TODO: "nothing" should be chip.CHAN_EMPTY. There are a lot of hardcoded checks
-        # to "nothing", which will all need to be update if we change "nothing" to something else
         self.currentSample: str = self.chip.CHAN_EMPTY  # what is currently in the head
 
         # connecting to devices can throw a ConnectionError
@@ -46,7 +46,7 @@ class AutomatedSCA:
             # connect to prior controller
             self.priorController = serial.Serial(priorPort, baudrate=9600, timeout=0.1)
             # start up printer head
-            # self.printer: PrinterHead = PrinterHead(priorPort=priorPort)
+            self.printer: PrinterHead = PrinterHead(priorController=self.priorController)
             # TODO: prior controller  take care of printing
             self.stage: Stage = Stage(plate=self.plate, chip = self.chip, priorController=self.priorController)
 
@@ -169,8 +169,7 @@ class AutomatedSCA:
         """
 
         self.chip.fillChannel(channelNum, self.currentSample)
-        # self.printer.print()
-        raise NotImplementedError("printer head not implemented yet")
+        self.printer.printSingle()
 
     def suckInSample(self, wellID: str):
         """
@@ -181,7 +180,7 @@ class AutomatedSCA:
         :param wellID: the sample the head is submerged in
         :type wellID: string
         """
-        # self.printer.getSample()
+        self.printer.getSample()
         # update which sample is stored in the printer
         self.currentSample = wellID
 
@@ -190,10 +189,8 @@ class AutomatedSCA:
         Applies a positive pressure, dispensing all of the currently
         held sample.
         """
-        # self.printer.dispenseAll()
+        self.printer.dispenseSample()
         # self.currentSample = "dirty" ???
-
-        raise NotImplementedError("")
 
     # ======================================= #
     #              semi-high-level            #
@@ -260,6 +257,7 @@ class AutomatedSCA:
         self.arm.calibrateOrigin()
 
     def resetStageOrigin(self):
+        # TODO: set current position of stage as 0,0 (assuming user moved to bottom right)
         """
         Resets the 0,0 position of stage
         """

@@ -4,7 +4,6 @@ from time import sleep
 
 from OB1 import OB1
 
-
 class Pressure:
   def __init__(self):
     self.pcontroller = OB1(calibrate=False)
@@ -33,7 +32,6 @@ class Pressure:
 
   def stop(self):
     self.pcontroller.set_pressure(4, 0)
-
 
   def close(self):
     self.pcontroller.close()
