@@ -299,8 +299,14 @@ class CalibrationMenu(ttk.Frame):
         self.calibArmBtn = ttk.Button(self, text="recalibrate arm Z axis", command=self.calibArm)
         grid(self.calibArmBtn, 0, 0, 0, 0)
 
-        self.resetStageBtn = ttk.Button(self, text="recalibrate stage positioning", command=self.resetStage)
-        grid(self.resetStageBtn, 1, 0, 0, 0)
+        self.calibStageFrame = ttk.Labelframe(self, text="Stage Positioning")
+
+        resetStageLab = ttk.Label(self.calibStageFrame, text="move stage until it hits the bottom and right \n limit switches, then hit \n \"recalibrate stage positioning\"")
+        grid(resetStageLab, 0, 0, 5, 5)
+        self.resetStageBtn = ttk.Button(self.calibStageFrame, text="recalibrate stage positioning", command=self.resetStage)
+        grid(self.resetStageBtn, 1,0,5,5)
+
+        grid(self.calibStageFrame, 1, 0, 0, 0)
 
         self.firstChanBtn = ttk.Button(self, text="save current position as 'first channel on camera'", command=self.saveFirstChannel)
         grid(self.firstChanBtn, 2, 0, 0, 0)
@@ -324,7 +330,7 @@ class CalibrationMenu(ttk.Frame):
         def cb():
             for btn in self.buttons: btn["state"] = "normal"
             self.offset.getStartBtn()["state"] = "normal"
-            CALIB_DICT["arm"].config(text=f"arm: {CALIBRATED}", background="green")
+            CALIB_DICT["arm"].config(text=f"arm: {CALIBRATED}", background="#65d92b")
 
         # def fakeThread(cb): sleep(1); cb()
         #TODO: call in driver
@@ -336,20 +342,22 @@ class CalibrationMenu(ttk.Frame):
 
     def resetStage(self):
         """ resets the origin of the stage """
-        for btn in self.buttons: btn["state"] = "disabled"
-        self.offset.getStartBtn()["state"] = "disabled"
+        # for btn in self.buttons: btn["state"] = "disabled"
+        # self.offset.getStartBtn()["state"] = "disabled"
 
-        def cb():
-            for btn in self.buttons: btn["state"] = "normal"
-            self.offset.getStartBtn()["state"] = "normal"
+        # def cb():
+        #     for btn in self.buttons: btn["state"] = "normal"
+        #     self.offset.getStartBtn()["state"] = "normal"
 
-        def fakeThread(cb): sleep(1); cb()
-        #TODO: call in driver
+        # def fakeThread(cb): sleep(1); cb()
+        # #TODO: call in driver
 
-        # driver.resetStageOrigin()
-        # mimic calling driver
-        t=Thread(target=fakeThread, args=[cb])
-        t.start()
+        # # driver.resetStageOrigin()
+        # # mimic calling driver
+        # t=Thread(target=fakeThread, args=[cb])
+        # t.start()
+        driver.calibrateStage()
+        CALIB_DICT["stage"].config(text=f"stage: {CALIBRATED}", background="#65d92b")
 
     def saveFirstChannel(self):
         """ 
@@ -357,8 +365,7 @@ class CalibrationMenu(ttk.Frame):
             is in the center of the + on the camera
         """
         driver.saveFirstChannel()
-        # TODO: remove the below later
-        print(driver.microscope.stage.firstChannelCamPos)
+        CALIB_DICT["first channel"].config(text=f"first channel: {LOADED}", background="#65d92b")
         # TODO: change calibration status of first channel
 
     def recalibratePressureSystem(self):
@@ -537,22 +544,22 @@ class CalibratedList(ttk.LabelFrame):
         
         ttk.LabelFrame.__init__(self, parent, text="Calibration Status")
         self.calibrations = calibrations
-        self.calibrations["arm"] = ttk.Label(self, text=f"arm: {NOT_CALIBRATED}", background="red")
+        self.calibrations["arm"] = ttk.Label(self, text=f"arm: {NOT_CALIBRATED}", background="#de4543")
         self.calibrations["arm"].pack(expand=True, fill='both')
 
-        self.calibrations["stage"] = ttk.Label(self, text=f"stage: {LOADED}", background="orange")
+        self.calibrations["stage"] = ttk.Label(self, text=f"stage: {LOADED}", background="#e39919")
         self.calibrations["stage"].pack(expand=True, fill='both')
 
-        self.calibrations["printer offset"] = ttk.Label(self, text=f"printer offset: {LOADED}", background="orange")
+        self.calibrations["printer offset"] = ttk.Label(self, text=f"printer offset: {LOADED}", background="#e39919")
         self.calibrations["printer offset"].pack(expand=True, fill='both')
 
-        self.calibrations["first channel"] = ttk.Label(self, text=f"first channel: {LOADED}", background="orange")
+        self.calibrations["first channel"] = ttk.Label(self, text=f"first channel: {LOADED}", background="#e39919")
         self.calibrations["first channel"].pack(expand=True, fill='both')
 
-        self.calibrations["first well"] = ttk.Label(self, text=f"first well: {LOADED}", background="orange")
+        self.calibrations["first well"] = ttk.Label(self, text=f"first well: {LOADED}", background="#e39919")
         self.calibrations["first well"].pack(expand=True, fill='both')
 
-        self.calibrations["pressures"] = ttk.Label(self, text=f"pressures: {LOADED}", background="orange")
+        self.calibrations["pressures"] = ttk.Label(self, text=f"pressures: {LOADED}", background="#e39919")
         self.calibrations["pressures"].pack(expand=True, fill='both')
 
         for child in self.winfo_children(): STARTUP_DISABLED_BUTTONS.append(child)

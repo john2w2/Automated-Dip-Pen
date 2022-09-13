@@ -77,15 +77,17 @@ class MicroscopeDriver:
         self.microscope.calibrateZArm()
         cb()
 
-    def calibrateStage(self, cb):
+    def calibrateStage(self):
+        # NOTE: if you want this to be threaded again, add the cb parameter
         """
         Starts a thread that resets the stage's internal positioning
         :param cb: Callback function used to reenable buttons on UI
         :type cb: function
         """
-        t: Thread = Thread(target=self.__calibrateStage, args=[cb])
-        self.currentThread = t
-        t.start()
+        self.microscope.resetStageOrigin()
+        # t: Thread = Thread(target=self.__calibrateStage, args=[cb])
+        # self.currentThread = t
+        # t.start()
 
     def recalibrateOB1(self, cb):
         """
@@ -96,6 +98,8 @@ class MicroscopeDriver:
         raise NotImplementedError("pressure system not implemented yet")
 
     def __calibrateStage(self, cb):
+        # NOTE: old method that previously called SIS
+        # we are no longer using this
         """
         Resets the internal positioning of the stage.
         This involves the stage moving until it hits 

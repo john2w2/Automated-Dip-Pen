@@ -291,7 +291,7 @@ class AutomatedSCA:
         position where first channel is lined up on + of camera
         """
         # TODO: rename to calibrate
-        self.stage.calibFirstChannelPos()
+        self.stage.calibFirstChannelCamPos()
 
     def saveVoltage(self, voltage:float):
         """
