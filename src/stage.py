@@ -168,12 +168,6 @@ class Stage:
             cmd = f"G,{self.firstChannelCamPos[0]},{self.firstChannelCamPos[1]+yOffset}"
             self.writeRead(cmd, isMoveCmd=True)
 
-    def moveChannelToPrinter(self, chanNum: int):
-        if self.isRealChannel(chanNum=chanNum):
-            yOffset = (chanNum - 1) * self.chanStepSize * -1
-            cmd = f"G,{self.firstChannelCamPos[0]+self.printerOffset[0]},{self.firstChannelCamPos[1]+yOffset+self.printerOffset[1]}"
-            self.writeRead(cmd, isMoveCmd=True)
-
     def getStageX(self) -> int:
         """Get X position of the stage (in number of motor steps)
 
