@@ -1,16 +1,17 @@
 import serial
 import string
-import os 
+import os
 import pathlib
 
 from plate import *
 from chip import *
 
+
 class Stage:
     """
     This class represents the microscope stage and attached devices (well plate and chip)
 
-    Many methods in this class enable required stage movements for the rest of the system, such as
+    Methods in this class enable required stage movements for the rest of the system, such as
     moving to a certain well.
 
     :param plate: Well Plate used for experimentation
@@ -28,7 +29,7 @@ class Stage:
 
     """
 
-    def __init__(self, plate: Plate, chip: Chip, priorController : serial.Serial, stepSize=0.04):
+    def __init__(self, plate: Plate, chip: Chip, priorController: serial.Serial, stepSize=0.04):
         """Constructor
         """
 
@@ -45,76 +46,91 @@ class Stage:
         self.stepSize = stepSize
 
         # Derived Fields:
+
         # Distance (in motor steps) between centers of 2 adjacent channels
-        self.chanStepSize = (self.chip.chanGapWidth+self.chip.chanWidth) / self.stepSize
+        self.chanStepSize = (self.chip.chanGapWidth +
+                             self.chip.chanWidth) / self.stepSize
         # Distance (in motor steps) between centers of 2 adjacent wells
         self.wellStepSize = self.plate.diam / self.stepSize
 
         # NOTE: we used to have self.plateInitX, plateInitY
         # We should standardize that initial reference well is A1, since there is no guarantee which well plate is being used
         # At least we know for any well plate, A1 exists
-        
+
     def calibPrinterOffset(self, offsetX: int, offsetY: int):
-        """
-        Saves the offset of the printer head
+        """Saves the printer offset values
+
+        Printer offset = (offsetX, offsetY) = relative distance to move from point A to point B
+        A = location of some point under camera view
+        B = same location, under printer head
+
         Offset values come from GUI calibration method
 
-        :param offsetX: distance (in steps) stage has to move to put first 
+        :param offsetX: Distance (in steps) stage has to move to put first
             channel under printer head, starting from first channel
             being focused on cross of camera (along x axis)
             offsetX = printerDropX - focusedDropX
         :type offsetX: int
-        :param offsetY: distance (in steps) stage has to move to put first 
+        :param offsetY: Distance (in steps) stage has to move to put first
             channel under printer head, starting from first channel
-            being focused on cross of camera (along x axis)
+            being focused on cross of camera (along y axis)
             offsetY = printerDropY - focusedDropY
         :type offsetY: int
         """
-        self.offset = (offsetX, offsetY)
+        self.printerOffset = (offsetX, offsetY)
 
     def moveChannelToPrinter(self, channelNum: int):
-        """Moves channelNum under the printer
+        """Moves specified channel under printer head
 
-        :param channelNum: the number of the channel to move under the printer head
+        :param channelNum: Channel to move under printer head
         :type channelNum: int
         """
-        # gives y position of stage such that channelNum channel is focused on + of camera
-        channelY = self.firstChannelCamPos[1] - ((channelNum - 1) * self.chanStepSize)
-            
-        # add offset to move channel from focused on + to directly under printer head
-        cmd = f"G,{self.firstChannelCamPos[0] + self.offset[0]}, {channelY + self.offset[1]}\r"
+
+        # Y Position of ith channel under camera
+        channelY = self.firstChannelCamPos[1] - \
+            ((channelNum - 1) * self.chanStepSize)
+
+        # Add printer offset
+        cmd = f"G,{self.firstChannelCamPos[0] + self.printerOffset[0]}, {channelY + self.printerOffset[1]}\r"
         self.writeRead(cmd, isMoveCmd=True)
 
     def calibOrigin(self):
-        """User moves the stage then that position is set as origin
+        """Define origin for stage
+
+        User moves the stage (using joystick) to bottom right, then redefine that position as origin
         """
         # NOTE: Since (0, 0) is bottom right, stage up => y decreases, stage left => x decreases
 
         # self.writeRead("G,0,0", isMoveCmd=True) # Move to origin
         # NOTE: now, have user use joystick to move stage to real origin
         self.writeRead("P,0,0,0")  # Redefine this location as origin
-        # NOTE: Prior advises that SIS only be used upon first installation, possibly avoid
-        # TODO: bring back SIS possibly
 
     def moveToOrigin(self):
-        self.writeRead("G,0,0", isMoveCmd=True) # Move to origin
+        """Move to origin
+        """
+        self.writeRead("G,0,0", isMoveCmd=True)
 
-    # Set coordinates for well A1 on stage
-    # Again, we justify that the "stage" encapsulates the actual microscope stage + well/chip on top of it
-    def setFirstWellPos(self) -> tuple:
-        # Assume user has positioned printer head above center of well A1
-        # TODO: remove this assumption later, have this be automated for accuracy
-        stagePos = self.getStageXY()
-        self.firstWellPos = tuple(stagePos)
+    def calibFirstWellPos(self, stagePos: tuple):
+        """Save stage coordinates for well A1
+
+        :param stagePos: Stage coordinates for when first well is under CAMERA
+        :type stagePos: tuple
+        """
+        # stagePos = self.getStageXY()
+        self.firstWellCamPos = stagePos
+        # Stage coordinates for first well under printer head
+        self.firstWellPos = (
+            stagePos[0]+self.printerOffset[0], stagePos[1]+self.printerOffset[1])
 
     def moveToWell(self, well: str):
         """Move specified well under printer head
 
-        :param well: ID of well. Format = row,column
+        :param well: ID of well. Preferred format = row,column
         :type well: str
         """
-        # convert to row,col if not in that format
-        if not "," in well: well = self.wellIDToRowCol(well)
+        # Convert to row,col if not in that format
+        if not "," in well:
+            well = self.wellIDToRowCol(well)
 
         if self.isRealWell(well):
             well = well.split(",")
@@ -127,14 +143,14 @@ class Stage:
             cmd = f"G,{self.firstWellPos[0]+xOffset},{self.firstWellPos[1]+yOffset}"
             self.writeRead(cmd, isMoveCmd=True)
 
-
-    def setFirstChannelCamPos(self) -> tuple:
+    def calibFirstChannelPos(self):
         """Calibrate location of first channel under the camera
 
         TODO: this is a calibration function, possibly move
         """
-        stagePos = self.getStageXY()
+        stagePos = self.getStageXY()  # Stage coordinates for location of first channel under camera
         self.firstChannelCamPos = tuple(stagePos)
+        self.firstChannelPos = (stagePos[0]+self.printerOffset[0], stagePos[1]+self.printerOffset[1])
 
     def moveChannelToCam(self, chanNum: int):
         """Move specified channel under camera
@@ -145,6 +161,13 @@ class Stage:
         if self.isRealChannel(chanNum=chanNum):
             yOffset = (chanNum - 1) * self.chanStepSize * -1
             cmd = f"G,{self.firstChannelCamPos[0]},{self.firstChannelCamPos[1]+yOffset}"
+            self.writeRead(cmd, isMoveCmd=True)
+
+
+    def moveChannelToPrinter(self, chanNum: int):
+        if self.isRealChannel(chanNum=chanNum):
+            yOffset = (chanNum - 1) * self.chanStepSize * -1
+            cmd = f"G,{self.firstChannelPos[0]},{self.firstChannelPos[1]+yOffset}"
             self.writeRead(cmd, isMoveCmd=True)
 
 
@@ -181,7 +204,7 @@ class Stage:
         end = self.getStageXY()
         return not (start == end)
 
-    #### Private helper methods
+    # Private helper methods
     # TODO: designate these as private with _
 
     def isRealWell(self, well: str) -> bool:
@@ -208,8 +231,7 @@ class Stage:
             return False
         return True
 
-
-    def isRealChannel(self, chanNum:int) -> bool:
+    def isRealChannel(self, chanNum: int) -> bool:
         """Check if channel with given number exists on chip
 
         :param chanNum: Channel number
@@ -225,9 +247,8 @@ class Stage:
             return False
         return True
 
-
     def wellIDToRowCol(self, wellID: str) -> str:
-        """Converts a wellID in the format "A1" to 
+        """Converts a wellID in the format "A1" to
         a row,col format: 1,1
 
         :param wellID: String representing ID of the well
@@ -260,8 +281,7 @@ class Stage:
         cmd = f"GR,0,{steps}"
         self.writeRead(cmd, isMoveCmd=True)
 
-
-    def moveToPos(self, x:int, y:int):
+    def moveToPos(self, x: int, y: int):
         """Move to absolute position
 
         :param x: Distance (in motor steps) to move stage in x-dir
@@ -271,7 +291,6 @@ class Stage:
         """
         cmd = f"G,{x},{y}"
         self.writeRead(cmd, isMoveCmd=True)
-
 
     def writeRead(self, cmd: str, isMoveCmd=False) -> str:
         cmd = f"{cmd}\r"
@@ -291,13 +310,13 @@ class Stage:
         """
         self.ser.close()
 
-
     def loadPrevOffset(self):
         """Loads previously calibrated printer offset values.
         If the data doesn't exist or is unreadable,
         overwrites / creates the file and loads default values
         """
-        parentDir = pathlib.Path(__file__).parent.resolve() # reference to parent directory of this file
+        parentDir = pathlib.Path(__file__).parent.resolve(
+        )  # reference to parent directory of this file
         calibPath = os.path.join(parentDir, 'calibrationFiles')
         offsetPath = os.path.join(calibPath, 'offset.txt')
 
@@ -312,12 +331,13 @@ class Stage:
             else:
                 # calibrationFiles/offset.txt exists
                 with open(offsetPath, 'r+') as f:
-                # check if file is well formatted
-                    line1 = f.readline() # can be None
-                    line2 = f.readline() # can be None
+                    # check if file is well formatted
+                    line1 = f.readline()  # can be None
+                    line2 = f.readline()  # can be None
 
-                    try: # this will fail if formatting was bad 
-                        offsets = (int(line1), int(line2)) # if any formatting error, it will happen here
+                    try:  # this will fail if formatting was bad
+                        # if any formatting error, it will happen here
+                        offsets = (int(line1), int(line2))
                         self.offset = offsets
                     except:
                         print("file is not formatted correctly, using default values")
@@ -373,7 +393,7 @@ class Stage:
 
         with open(pathToData, 'w+') as f:
             f.write(f"{str(defaultX)}\n")
-            f.write(str(defaultY)) 
+            f.write(str(defaultY))
 
     def loadPrevFirstChan(self):
         """
@@ -397,12 +417,11 @@ class Stage:
                 # the first channel calibration file and exists
                 with open(channelPath, 'r+') as f:
                     line1 = f.readline()
-                
 
     def restoreDefaultFirstChannel(self):
         """
-        Resets the stored first channel location, storing the 
-        default values in the calibration file and loading the 
+        Resets the stored first channel location, storing the
+        default values in the calibration file and loading the
         default values into the stage
         """
         parentDir = pathlib.Path(__file__).parent.resolve()
@@ -413,7 +432,7 @@ class Stage:
     def saveNewFirstChannel(self):
         # TODO: this should replace setFirstChannel
         """
-        Grabs the position of the stage and stores it as the 
+        Grabs the position of the stage and stores it as the
         'first channel on camera' position. Also stores those
         values in a file to be used on future experiments
         """
@@ -426,9 +445,9 @@ class Stage:
 
         with open(channelPath, 'w+') as f:
             x = self.getStageX()
-            y = self.getStageX()
+            y = self.getStageX()  # TODO: Y
 
-            self.firstChannelCamPos = (x,y)
+            self.firstChannelCamPos = (x, y)
 
             f.write(f"{str(x)}\n")
             f.write(str(y))
