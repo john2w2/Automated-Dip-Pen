@@ -17,6 +17,10 @@ from gui_widgets.wellSelect import WellSelect
 driver: MicroscopeDriver = None
 DISABLE_BUTTONS = []  # list of buttons that should be disabled for most commands
 STARTUP_DISABLED_BUTTONS = [] # list of buttons that should be disabled before startup, enabled once startup succeeds
+CALIB_DICT = {} # dictionary mapping device name to calibration status
+CALIBRATED = "calibrated"
+NOT_CALIBRATED = "not calibrated"
+LOADED = "loaded from previous run"
 
 interruptBtn: ttk.Button = None # global reference to interrupt button
 # driver: MicroscopeDriver = None # global reference to driver
@@ -47,11 +51,6 @@ class HighLevel(ttk.LabelFrame):
         startupButton = ttk.Button(self, text="open startup menu", command=self.openStartup)
         grid(startupButton, 0, 0, 5, 5)
 
-
-        # onclick: load all other buttons, disable this forever
-        # load_device = self.StartupMenu(self)
-        # grid(load_device, 0, 0, 5, 5)
-
         interruptBtn = ttk.Button(self, text="INTERRUPT")
         grid(interruptBtn, 1, 0, 5, 5)
         interruptBtn["state"] = "disabled"
@@ -76,7 +75,6 @@ class HighLevel(ttk.LabelFrame):
 
             startupMenu.protocol("WM_DELETE_WINDOW", on_closing)
             self.startupOpen = True
-
 
     def interrupt(self):
         """ sends an interrupt command to the microscope driver"""
@@ -130,11 +128,14 @@ class HighLevel(ttk.LabelFrame):
 
             startupBtn = ttk.Button(self, text="start up the device", command=self.startUp)
             startupBtn.grid(row=3, column=0, columnspan=2, stick='nsew')
-            self.items = [self.priorLab, self.priorEnt, self.ardLab, self.ardEnt, startupBtn]
+            self.items = [self.priorLab, self.priorEnt, self.ardLab, self.ardEnt, startupBtn, dd, 
+                            numChanLab, self.numChanEnt, chanDistLab, self.chanDistEnt]
+
+            if driver != None:
+                for item in self.items: item["state"] = "disabled"
 
         def startUp(self):
             """ loads in the device using the specified parameters """
-            # TODO: check if these are valid
             # COM ports will raise errors so no need to check
             priorP = self.priorEnt.get()
             ardP = self.ardEnt.get()
@@ -142,16 +143,13 @@ class HighLevel(ttk.LabelFrame):
             numChan = self.numChanEnt.get()  # cast to int, check > 0
             chanDist = self.chanDistEnt.get() # cast to int, check > 0
             try:
-            
                 plateSize = int(self.wellSize.get().split(" wells")[0])  # turn this from "x wells" to x:int
                 numChan = int(self.numChanEnt.get())  # cast to int, check > 0
                 chanDist = int(self.chanDistEnt.get()) # cast to int, check > 0
-                print(chanDist)
-                print(numChan)
                 if numChan < 0 or chanDist < 0: raise ValueError()
             except:
                 messagebox.showerror(title="Bad Parameters", message="please make sure your parameters are valid")
-                return
+                return # exit method, don't start up the device
 
             try:
                 def cb():
@@ -163,11 +161,6 @@ class HighLevel(ttk.LabelFrame):
                                           plateSize=plateSize, numChan=numChan, 
                                           chanDist=chanDist, cb=cb)
 
-                # TODO: actually connect to driver
-                # raise ConnectionError # connect to driver
-                # disable startup stuff, enable all other stuff (need to access other buttons somehow)
-
-                
             except ConnectionError as e:
                 # some popup window saying something went wrong
                 messagebox.showerror(title="connection error", message="either COM ports are incorrect or devices are accessed by another resource")
@@ -245,7 +238,6 @@ class PrintEachToK(ttk.Labelframe):
             # NOTE: WellSelect is an imported class
             grid(WellSelect(wellSelectMenu), 0,0,0,0)
             # TODO: this also needs buttons to save or cancel selection
-            # grid(wellSelectMenu(wellSelectMenu), 0,0,0,0)
             # TODO: wellselect save button should close window, put wells in array using WellSelect.getSelected
             wellSelectMenu.protocol("WM_DELETE_WINDOW", on_closing)
             self.wellSelectOpen = True
@@ -267,7 +259,7 @@ class CalibrationFrame(ttk.LabelFrame):
         STARTUP_DISABLED_BUTTONS.append(openSanity)
         grid(openSanity, 1, 0, 5, 5)
 
-        self.calibList = CalibratedList(self)
+        self.calibList = CalibratedList(self, CALIB_DICT)
         grid(self.calibList, 2, 0, 5, 5)
 
 
@@ -306,10 +298,13 @@ class CalibrationMenu(ttk.Frame):
         self.columnconfigure(0, weight=1)
         self.calibArmBtn = ttk.Button(self, text="recalibrate arm Z axis", command=self.calibArm)
         grid(self.calibArmBtn, 0, 0, 0, 0)
+
         self.resetStageBtn = ttk.Button(self, text="recalibrate stage positioning", command=self.resetStage)
         grid(self.resetStageBtn, 1, 0, 0, 0)
+
         self.firstChanBtn = ttk.Button(self, text="save current position as 'first channel on camera'", command=self.saveFirstChannel)
         grid(self.firstChanBtn, 2, 0, 0, 0)
+
         self.pressureBtn = ttk.Button(self, text="recalibrate pressure system", command=self.recalibratePressureSystem)
         grid(self.pressureBtn, 3, 0,0,0)
 
@@ -329,6 +324,7 @@ class CalibrationMenu(ttk.Frame):
         def cb():
             for btn in self.buttons: btn["state"] = "normal"
             self.offset.getStartBtn()["state"] = "normal"
+            CALIB_DICT["arm"].config(text=f"arm: {CALIBRATED}", background="green")
 
         # def fakeThread(cb): sleep(1); cb()
         #TODO: call in driver
@@ -360,9 +356,10 @@ class CalibrationMenu(ttk.Frame):
             saves the position of the stage as the one such that the first channel
             is in the center of the + on the camera
         """
-        #TODO: call in driver
-        # driver.saveFirstChannel()
-        pass
+        driver.saveFirstChannel()
+        # TODO: remove the below later
+        print(driver.microscope.stage.firstChannelCamPos)
+        # TODO: change calibration status of first channel
 
     def recalibratePressureSystem(self):
         """ recalibrates the pressure sytem (make sure you have caps on)"""
@@ -387,7 +384,7 @@ class CalibrationMenu(ttk.Frame):
             self.otherButtons = otherButtons # to disable other calibrations when getting offset
 
             self.columnconfigure(0, weight=1)
-            self.infoLabel = ttk.Label(self, text="press start to begin", background="blue")
+            self.infoLabel = ttk.Label(self, text="press start to begin", background="#eb584d")
             grid(self.infoLabel, 0, 0,0 ,0 )
             # disable all other buttons, pop up message saying "please move printer over waste slide, then hit print drop"
             self.startBtn = ttk.Button(self, text="start", command= self.startOffset)
@@ -536,30 +533,26 @@ class SanityMenu(ttk.Frame):
             for child in self.winfo_children(): self.sanity_buttons.append(child)
 
 class CalibratedList(ttk.LabelFrame):
-    def __init__(self, parent):
+    def __init__(self, parent, calibrations):
+        
         ttk.LabelFrame.__init__(self, parent, text="Calibration Status")
-
-        self.CALIBRATED = "calibrated"
-        self.NOT_CALIBRATED = "not calibrated"
-        self.LOADED = "loaded from previous run"
-
-        self.calibrations = {}
-        self.calibrations["arm"] = ttk.Label(self, text=f"arm: {self.NOT_CALIBRATED}", background="red")
+        self.calibrations = calibrations
+        self.calibrations["arm"] = ttk.Label(self, text=f"arm: {NOT_CALIBRATED}", background="red")
         self.calibrations["arm"].pack(expand=True, fill='both')
 
-        self.calibrations["stage"] = ttk.Label(self, text=f"stage: {self.LOADED}", background="orange")
+        self.calibrations["stage"] = ttk.Label(self, text=f"stage: {LOADED}", background="orange")
         self.calibrations["stage"].pack(expand=True, fill='both')
 
-        self.calibrations["printer offset"] = ttk.Label(self, text=f"printer offset: {self.LOADED}", background="orange")
+        self.calibrations["printer offset"] = ttk.Label(self, text=f"printer offset: {LOADED}", background="orange")
         self.calibrations["printer offset"].pack(expand=True, fill='both')
 
-        self.calibrations["first channel"] = ttk.Label(self, text=f"first channel: {self.LOADED}", background="orange")
+        self.calibrations["first channel"] = ttk.Label(self, text=f"first channel: {LOADED}", background="orange")
         self.calibrations["first channel"].pack(expand=True, fill='both')
 
-        self.calibrations["first well"] = ttk.Label(self, text=f"first well: {self.LOADED}", background="orange")
+        self.calibrations["first well"] = ttk.Label(self, text=f"first well: {LOADED}", background="orange")
         self.calibrations["first well"].pack(expand=True, fill='both')
 
-        self.calibrations["pressures"] = ttk.Label(self, text=f"pressures: {self.LOADED}", background="orange")
+        self.calibrations["pressures"] = ttk.Label(self, text=f"pressures: {LOADED}", background="orange")
         self.calibrations["pressures"].pack(expand=True, fill='both')
 
         for child in self.winfo_children(): STARTUP_DISABLED_BUTTONS.append(child)
@@ -651,5 +644,12 @@ additional = AdditionalCommands(root)
 grid(additional,1,1,5,5)
 
 for item in STARTUP_DISABLED_BUTTONS: item["state"] = "disabled"
+
+def close_main():
+    if driver != None:
+        driver.close()
+        print("driver closed")
+    root.destroy()
+root.protocol("WM_DELETE_WINDOW", close_main)
 
 root.mainloop()

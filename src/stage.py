@@ -338,7 +338,7 @@ class Stage:
                     try:  # this will fail if formatting was bad
                         # if any formatting error, it will happen here
                         offsets = (int(line1), int(line2))
-                        self.offset = offsets
+                        self.printerOffset = offsets
                     except:
                         print("file is not formatted correctly, using default values")
                         self.__makeDefOffsetFile(pathToData=offsetPath)
@@ -371,7 +371,7 @@ class Stage:
             os.makedirs(calibPath)
 
         with open(offsetPath, 'w+') as f:
-            self.offset = (newX, newY)
+            self.printerOffset = (newX, newY)
             f.write(f"{str(newX)}\n")
             f.write(str(newY))
 
@@ -389,7 +389,7 @@ class Stage:
         :param defaultY: default Y offset, defaults to -50000
         :type defaultY: int, optional
         """
-        self.offset = (defaultX, defaultY)
+        self.printerOffset = (defaultX, defaultY)
 
         with open(pathToData, 'w+') as f:
             f.write(f"{str(defaultX)}\n")

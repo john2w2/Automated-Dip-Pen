@@ -1,11 +1,10 @@
 import serial
 
-from plate import Plate
+from plate import Plate, Plate6, Plate96, Plate384
 from chip import Chip
 from arm import Arm
 from stage import Stage
 from printerHead import PrinterHead
-# from printer import Printer
 
 class AutomatedSCA:
     """
@@ -20,11 +19,6 @@ class AutomatedSCA:
     """
     def __init__(self, plateSize, numChan, chanDist, 
                 priorPort: str = "COM6", arduinoPort="COM7"):
-        # NOTE: serial connection to prior box (usually COM6, stage port)
-        # will have to be made here and passed down to movement
-        # and printer head
-        # reason: printer head needs to send TLL command though prior box
-        # in order to print a drop
         """
         initializes all devices for microscope
         Also starts z axis arm calibration
@@ -35,39 +29,36 @@ class AutomatedSCA:
         :type arduinoPort: str, optional
         :raises ConnectionError: when unable to connect to a device
         """
-        # TODO: don't hardcode numChan, numRows, numCols
         # TODO: change chip parameters to just be chanDist
         self.chip: Chip = Chip(numChan=numChan, chanGapWidth=chanDist, chanWidth=0)
 
-        # TODO: translate plateSize to rows, cols
-        # TODO: Plate should process plate size into rows,cols
-        self.plate: Plate = Plate(numRows=8, numCols=12)
+        if plateSize == 6:
+            self.plate: Plate = Plate6()
+        elif plateSize == 96:
+            self.plate: Plate = Plate96()
+        else:
+            self.plate: Plate = Plate384()
 
         self.currentSample: str = self.chip.CHAN_EMPTY  # what is currently in the head
 
-        # connecting to devices can throw a ConnectionError
-        # connect to low-level devices
+        # connecting to devices can throw a SerialException
         try:
             # connect to prior controller
             self.priorController = serial.Serial(priorPort, baudrate=9600, timeout=0.1)
             self.stage: Stage = Stage(plate=self.plate, chip = self.chip, priorController=self.priorController)
-
-            # so we can close priorController if this fails
+            print("prior")
+            # so we can close priorController connecting to arm
             try:
                 self.arm: Arm = Arm(arduinoPort=arduinoPort)
+                print("arm")
             except serial.SerialException as err:
                 self.priorController.close()
                 raise ConnectionError(err)
 
-            # start up printer head
             self.printer: PrinterHead = PrinterHead(priorController=self.priorController)
 
         except serial.SerialException as err:
             raise ConnectionError(err)
-
-        # TODO: still on the fence about whether or not to run calibrateArm on startup
-        # self.calibrateArm()
-        # TODO: put all calibration stuff here later
 
     # ======================================= #
     #                low-level                #
@@ -222,7 +213,7 @@ class AutomatedSCA:
         closes all connected devices
         Should be called before program ends to free the stage and arduino
         """
-        self.moveArmToUp()
+        # self.moveArmToUp()
         self.arm.close()
         self.priorController.close()
         # self.pressure.close()
@@ -300,7 +291,7 @@ class AutomatedSCA:
         position where first channel is lined up on + of camera
         """
         # TODO: rename to calibrate
-        self.stage.setFirstChannelCamPos()
+        self.stage.calibFirstChannelPos()
 
     def saveVoltage(self, voltage:float):
         """

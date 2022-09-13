@@ -494,7 +494,8 @@ class MicroscopeDriver:
         self.microscope.interruptArm()
         if self.currentThread != None:
             self.currentThread.join()  # blocks until other running thread notices stop_threads
-        self.resetToSafeState()  # moves everything back to some safe state
+        # TODO: resetToSafeState() should be made into a button, probably don't call it here       
+        # self.resetToSafeState()  # moves everything back to some safe state
         # make it so operations can be run in future
         self.stop_threads = False
 
@@ -844,5 +845,6 @@ class MicroscopeDriver:
         Issues an interrupt command, meaning all movement will be 
         interrupted
         """
+        #TODO: have an interrupt here
         self.interrupt()
         self.microscope.close()
