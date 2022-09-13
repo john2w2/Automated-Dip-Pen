@@ -35,11 +35,12 @@ class MicroscopeDriver:
         """
 
         # TODO: startup needs to be threaded (from GUI) since it calls calibrateArm (no it doesn't)
-
-        self.microscope: AutomatedSCA = AutomatedSCA(
-            priorPort=priorPort, arduinoPort=arduinoPort,
-            )
-
+        try:
+            self.microscope: AutomatedSCA = AutomatedSCA(
+                priorPort=priorPort, arduinoPort=arduinoPort,
+                plateSize=plateSize, numChan=numChan, chanDist=chanDist)
+        except:
+            raise ConnectionError
         self.stop_threads: bool = False
 
         # currently running thread

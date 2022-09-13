@@ -18,7 +18,8 @@ class AutomatedSCA:
     We intend for these low-level operations to be combined into
         higher-level functions in microscopeDriver
     """
-    def __init__(self, priorPort: str = "COM6", arduinoPort="COM7"):
+    def __init__(self, plateSize, numChan, chanDist, 
+                priorPort: str = "COM6", arduinoPort="COM7"):
         # NOTE: serial connection to prior box (usually COM6, stage port)
         # will have to be made here and passed down to movement
         # and printer head
@@ -35,7 +36,11 @@ class AutomatedSCA:
         :raises ConnectionError: when unable to connect to a device
         """
         # TODO: don't hardcode numChan, numRows, numCols
-        self.chip: Chip = Chip(numChan=40)
+        # TODO: change chip parameters to just be chanDist
+        self.chip: Chip = Chip(numChan=numChan, chanGapWidth=chanDist, chanWidth=0)
+
+        # TODO: translate plateSize to rows, cols
+        # TODO: Plate should process plate size into rows,cols
         self.plate: Plate = Plate(numRows=8, numCols=12)
 
         self.currentSample: str = self.chip.CHAN_EMPTY  # what is currently in the head
@@ -45,19 +50,19 @@ class AutomatedSCA:
         try:
             # connect to prior controller
             self.priorController = serial.Serial(priorPort, baudrate=9600, timeout=0.1)
-            # start up printer head
-            self.printer: PrinterHead = PrinterHead(priorController=self.priorController)
-            # TODO: prior controller  take care of printing
             self.stage: Stage = Stage(plate=self.plate, chip = self.chip, priorController=self.priorController)
 
             # so we can close priorController if this fails
             try:
                 self.arm: Arm = Arm(arduinoPort=arduinoPort)
-            except ConnectionError as err:
+            except serial.SerialException as err:
                 self.priorController.close()
                 raise ConnectionError(err)
 
-        except ConnectionError as err:
+            # start up printer head
+            self.printer: PrinterHead = PrinterHead(priorController=self.priorController)
+
+        except serial.SerialException as err:
             raise ConnectionError(err)
 
         # TODO: still on the fence about whether or not to run calibrateArm on startup

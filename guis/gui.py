@@ -2,6 +2,8 @@ import tkinter as tk
 import sys
 sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
 
+import serial
+
 from tkinter import ttk
 from tkinter import messagebox
 from time import sleep
@@ -102,7 +104,6 @@ class HighLevel(ttk.LabelFrame):
             grid(self.ardEnt, 1,1,0,0)
             grid(portFrame, 0,0,5,5)
 
-
             plateFrame = ttk.LabelFrame(self, text="Plate")
             self.wellSize = tk.StringVar()
             dd = ttk.OptionMenu(plateFrame, self.wellSize, "96 wells", "6 wells" , "96 wells", "384 wells")
@@ -134,24 +135,42 @@ class HighLevel(ttk.LabelFrame):
         def startUp(self):
             """ loads in the device using the specified parameters """
             # TODO: check if these are valid
+            # COM ports will raise errors so no need to check
             priorP = self.priorEnt.get()
             ardP = self.ardEnt.get()
-            plateSize = self.wellSize.get()
-            numChan = self.numChanEnt.get()
-            chanDist = self.chanDistEnt.get()
-            # try to initialize
+            plateSize = self.wellSize.get()  # turn this from "x wells" to x:int
+            numChan = self.numChanEnt.get()  # cast to int, check > 0
+            chanDist = self.chanDistEnt.get() # cast to int, check > 0
             try:
+            
+                plateSize = int(self.wellSize.get().split(" wells")[0])  # turn this from "x wells" to x:int
+                numChan = int(self.numChanEnt.get())  # cast to int, check > 0
+                chanDist = int(self.chanDistEnt.get()) # cast to int, check > 0
+                print(chanDist)
+                print(numChan)
+                if numChan < 0 or chanDist < 0: raise ValueError()
+            except:
+                messagebox.showerror(title="Bad Parameters", message="please make sure your parameters are valid")
+                return
+
+            try:
+                def cb():
+                    for item in STARTUP_DISABLED_BUTTONS: item["state"] = "normal"
+                    for item in self.items: item["state"] = "disabled" 
+                
                 global driver
-                driver = MicroscopeDriver(priorPort=priorP, arduinoPort=ardP)                
+                driver = MicroscopeDriver(priorPort=priorP, arduinoPort=ardP,
+                                          plateSize=plateSize, numChan=numChan, 
+                                          chanDist=chanDist, cb=cb)
+
                 # TODO: actually connect to driver
                 # raise ConnectionError # connect to driver
                 # disable startup stuff, enable all other stuff (need to access other buttons somehow)
-                for item in STARTUP_DISABLED_BUTTONS: item["state"] = "normal"
-                for item in self.items: item["state"] = "disabled"
+
                 
             except ConnectionError as e:
                 # some popup window saying something went wrong
-                messagebox.showwarning(title="conneciton error", message="either COM ports are incorrect or devices are accessed by another resource")
+                messagebox.showerror(title="connection error", message="either COM ports are incorrect or devices are accessed by another resource")
 
 class SingleToMultiple(ttk.LabelFrame):
     def __init__(self, parent):
@@ -311,12 +330,12 @@ class CalibrationMenu(ttk.Frame):
             for btn in self.buttons: btn["state"] = "normal"
             self.offset.getStartBtn()["state"] = "normal"
 
-        def fakeThread(cb): sleep(1); cb()
+        # def fakeThread(cb): sleep(1); cb()
         #TODO: call in driver
 
         # driver.calibrateZArm()
         # mimic calling driver
-        t=Thread(target=fakeThread, args=[cb])
+        t=Thread(target=driver.calibrateZArm, args=[cb])
         t.start()
 
     def resetStage(self):
