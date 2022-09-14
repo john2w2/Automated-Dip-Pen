@@ -1,4 +1,3 @@
-from multiprocessing.sharedctypes import Value
 from threading import Thread
 import string
 from time import sleep
@@ -24,7 +23,6 @@ class MicroscopeDriver:
     ):
         """
         Instantiates the microscope, connecting to all devices
-        Note that arm calibration runs automatically (TODO: maybe change this)
 
         :param priorPort: COM port of prior controller (used for stage and JetServer voltage)
         :type priorPort: str
@@ -44,7 +42,9 @@ class MicroscopeDriver:
         self.stop_threads: bool = False
 
         # currently running thread
-        self.currentThread = None
+        self.currentThread: Thread = None
+        # so we can block this interrupt thread when we close
+        self.interruptThread: Thread = None
 
         # which wells contain ethanol (cleaning solution)
         self.ethanolWells = []
@@ -85,9 +85,7 @@ class MicroscopeDriver:
         :type cb: function
         """
         self.microscope.resetStageOrigin()
-        # t: Thread = Thread(target=self.__calibrateStage, args=[cb])
-        # self.currentThread = t
-        # t.start()
+
 
     def recalibrateOB1(self, cb):
         """
@@ -101,22 +99,22 @@ class MicroscopeDriver:
         pass
         # raise NotImplementedError("pressure system not implemented yet")
 
-    # deprecated
-    def __calibrateStage(self, cb):
-        # NOTE: old method that previously called SIS
-        # we are no longer using this
-        """
-        Resets the internal positioning of the stage.
-        This involves the stage moving until it hits
-        its bottom and right limit switches
+    # # deprecated
+    # def __calibrateStage(self, cb):
+    #     # NOTE: old method that previously called SIS
+    #     # we are no longer using this
+    #     """
+    #     Resets the internal positioning of the stage.
+    #     This involves the stage moving until it hits
+    #     its bottom and right limit switches
 
-        :param cb: Callback function used to reenable buttons on UI
-        :type cb: function
-        """
-        self.microscope.moveArmToUp()
-        if self.__checkInterrupt(cb): return
-        self.microscope.resetStageOrigin()
-        cb()
+    #     :param cb: Callback function used to reenable buttons on UI
+    #     :type cb: function
+    #     """
+    #     self.microscope.moveArmToUp()
+    #     if self.__checkInterrupt(cb): return
+    #     self.microscope.resetStageOrigin()
+    #     cb()
 
     # NOTE: these saving functions don't need to be threaded
     def saveFirstChannelCamPos(self):
@@ -386,6 +384,48 @@ class MicroscopeDriver:
     # these low level functions are intended to provide the user with a small amount
     # of control to continue doing sanity checks, or to do small stuff (like focusing a channel)
     # some of these will also be called by high level functions for cleanup / setup
+    def movePrinterIntoWell(self, cb):
+        """Moves the printer head down to its 'in well' position
+            Assumes that the printer head is already lined up with the well
+        """
+        t: Thread = Thread(target=self.__movePrinterIntoWell, args=[cb])
+        self.currentThread = t
+        t.start()
+
+    def __movePrinterIntoWell(self, cb):
+        self.microscope.movePrinterIntoWell()
+        cb()
+
+    def moveArmToUp(self, cb):
+        """_summary_
+
+        :param cb: _description_
+        :type cb: function
+        """
+        t:Thread = Thread(target=self.__moveArmToUp, args=[cb])
+        self.currentThread = t
+        t.start()
+
+    def __moveArmToUp(self, cb):
+        self.microscope.moveArmToUp()
+        cb()
+
+    def grabSampleNoMove(self, cb):
+        """Sucks in with the printer head. 
+        Assumes that the printer head is already submerged in solution
+
+        :param cb: callback function that is called when thread finishes
+        :type cb: function
+        """
+
+        t:Thread = Thread(target=self.__grabSampleNoMove, args=[cb])
+        self.currentThread = t
+        t.start()
+    
+    def __grabSampleNoMove(self, cb):
+        # TODO: find better well id to put instead of A1
+        self.microscope.getSample("A1")
+        cb()
 
     def focusChannel(self, channelNum: int, cb):
         """Starts a thread that: focuses the given channel on the camera display
@@ -490,7 +530,7 @@ class MicroscopeDriver:
         self.microscope.moveArmToUp()
         self.microscope.movePrinterOverWell("A1")
 
-    def interrupt(self):
+    def interrupt(self, cb):
         # TODO: right now this is blocking, will pause GUI
         # threading this may be weird... or maybe not I have to think about it
 
@@ -509,12 +549,16 @@ class MicroscopeDriver:
 
         self.stop_threads = True
         self.microscope.interruptArm()
+        t: Thread = Thread(target=self.__interrupt, args=[cb])
+        self.interruptThread = t
+        t.start()
+
+    def __interrupt(self, cb):
         if self.currentThread != None:
-            self.currentThread.join()  # blocks until other running thread notices stop_threads
-        # TODO: resetToSafeState() should be made into a button, probably don't call it here       
-        # self.resetToSafeState()  # moves everything back to some safe state
-        # make it so operations can be run in future
-        self.stop_threads = False
+            self.currentThread.join()
+
+        self.stop_thread = False
+        cb()
 
     # ============ mid-level functions ===============
 
@@ -856,12 +900,16 @@ class MicroscopeDriver:
         else:
             return False
 
-    def close(self):
+    def close(self, cb):
+        # TODO: haven't figured out how to join interrupt thread
+        # do that tomorrow
         """
         Closes all connected devices.
         Issues an interrupt command, meaning all movement will be
         interrupted
         """
         #TODO: have an interrupt here
-        self.interrupt()
+        self.interrupt(cb)
+        # print(self.interruptThread)
+        # self.interruptThread.join()
         self.microscope.close()

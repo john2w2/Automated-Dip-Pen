@@ -314,6 +314,9 @@ class CalibrationMenu(ttk.Frame):
         self.offset = self.OffSetCalibration(self, self.buttons)
         grid(self.offset, 4, 0, 0,0)
 
+        getSample = self.ManualGetSample(self, self.buttons)
+        grid(getSample, 5, 0, 5, 5)
+
         # TODO : saving 3 pressure values menu
 
     def calibArm(self):
@@ -424,8 +427,94 @@ class CalibrationMenu(ttk.Frame):
                 eqP = float(eqP)
                 outP = float(outP)
                 driver.savePressures(inPressure=inP, eqPressure=eqP, outPressure=outP)
+                CALIB_DICT["pressures"].config(text=f"pressures: {CALIBRATED}", background="#65d92b")
             except ValueError:
                 messagebox.showwarning(title="bad pressure input", message="please check your values")
+
+    class ManualGetSample(ttk.LabelFrame):
+        def __init__(self, parent, otherButtons):
+            ttk.LabelFrame.__init__(self, parent, text="Manually Get a Sample")
+            for i in range(5): self.rowconfigure(i, weight=1)
+            self.columnconfigure(0, weight=1)
+
+            self.instructions = ttk.Label(self, text="Please fill a well on a 6-well plate, then click start to begin")
+            grid(self.instructions, 0,0,5,0)
+
+            self.startBtn = ttk.Button(self, text="start", command=self.start)
+            grid(self.startBtn, 1, 0, 5, 0)
+
+            self.moveOverWellBtn = ttk.Button(self, text="moved over well", command=self.movedOverWell)
+            grid(self.moveOverWellBtn, 2, 0, 5, 0)
+            self.moveOverWellBtn["state"] = "disabled"
+
+            self.intoWellBtn = ttk.Button(self, text="move down into well", command=self.moveIntoWell)
+            grid(self.intoWellBtn, 3, 0, 5, 0)
+            self.intoWellBtn["state"] = "disabled"
+
+            self.getSampleBtn = ttk.Button(self, text="get sample", command=self.getSample)
+            grid(self.getSampleBtn, 4, 0, 5, 0)
+            self.getSampleBtn["state"] = "disabled"
+
+            self.moveUpBtn = ttk.Button(self, text="move arm back up", command=self.moveUp)
+            grid(self.moveUpBtn, 5, 0, 5, 0)
+            self.moveUpBtn["state"] = "disabled"
+
+            self.abortBtn = ttk.Button(self, text="abort", command=self.abort)
+            grid(self.abortBtn, 6, 0, 5, 0)
+            self.abortBtn["state"] = "disabled"
+
+        def start(self):
+            self.startBtn["state"] = "disabled"
+            self.abortBtn["state"] = "normal"
+            def cb():
+                self.moveOverWellBtn["state"] = "normal"
+                self.instructions.configure(text="Move printer head above a well containing solution")
+
+            driver.moveArmToUp(cb)
+            
+        def movedOverWell(self):
+            self.moveOverWellBtn["state"] = "disabled"
+            self.intoWellBtn["state"] = "normal"
+            self.instructions.configure(text="press 'move into well'")
+
+        def moveIntoWell(self):
+            self.intoWellBtn["state"] = "disabled"
+            #cb
+            def cb():
+                print("hi this is cb")
+                self.getSampleBtn["state"] = "normal"
+                print("sample button normal")
+                self.instructions.configure(text="press 'get sample'")
+
+            driver.movePrinterIntoWell(cb)  
+
+        def getSample(self):
+            self.getSampleBtn["state"] = "disabled"
+            def cb():
+                self.moveUpBtn["state"] = "normal"
+                self.instructions.configure(text="press 'move arm up'")
+
+            driver.grabSampleNoMove(cb)
+
+        def moveUp(self):
+            self.moveUpBtn["state"] = "disabled"
+            def cb():
+                self.abortBtn["state"] = "disabled"
+                self.startBtn["state"] = "normal"
+
+            driver.moveArmToUp(cb)
+
+        def abort(self):
+            self.startBtn["state"] = "normal"
+            def cb():
+                self.instructions.config(text="Aborted. Press start to recalibrate")
+                self.moveOverWellBtn["state"] = "disabled"
+                self.intoWellBtn["state"] = "disabled"
+                self.getSampleBtn["state"] = "disabled"
+                self.moveUpBtn["state"] = "disabled"
+                self.abortBtn["state"] = "disabled"
+
+            driver.interrupt(cb)
 
     class OffSetCalibration(ttk.LabelFrame):
         # TODO: this will probably be deprecated by something else 
@@ -472,7 +561,7 @@ class CalibrationMenu(ttk.Frame):
         def printDrop(self):
             """ print, save position of stage at time of printing """
             def cb():
-                # self.printLoc = driver.getStageXY()
+                self.printLoc = driver.getStageXY()
                 self.printBtn["state"] = "disabled"
                 self.focusBtn["state"] = "normal"
                 self.infoLabel.config(text="please move drop into cross on camera")
@@ -486,13 +575,14 @@ class CalibrationMenu(ttk.Frame):
         def dropFocused(self):
             """ get location compute difference, store that in stage, re-enable all GUI buttons"""
             # TODO: also re-enable all other calibration buttons
-            # focusLoc = driver.getStageXY()
-            # driver.saveOffset (self.printLoc - focusLoc)
+            focusLoc = driver.getStageXY()
+            driver.saveOffset(self.printLoc[0] - focusLoc[0], self.printLoc[1] - focusLoc[0])
             self.startBtn["state"] = "normal"
             self.focusBtn["state"] = "disabled"
             self.infoLabel.configure(text="done! Press start to recalibrate")
             self.abortBtn["state"] = "disabled"
             for btn in self.otherButtons: btn["state"] = "normal"
+            print(driver.microscope.stage.printerOffset)
 
         def abort(self):
             """ wipe self.dropLoc, enable start, disable everything else, including abort"""
@@ -703,13 +793,18 @@ grid(calib, 0, 1, 5, 5)
 additional = AdditionalCommands(root)
 grid(additional,1,1,5,5)
 
+def fakeCB(): x=3
+
 for item in STARTUP_DISABLED_BUTTONS: item["state"] = "disabled"
 
 def close_main():
+    def closeCB(): root.destroy()
+    
     if driver != None:
-        driver.close()
+        driver.close(closeCB)
         print("driver closed")
-    root.destroy()
+    else:
+        closeCB()
 root.protocol("WM_DELETE_WINDOW", close_main)
 
 root.mainloop()

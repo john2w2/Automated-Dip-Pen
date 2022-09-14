@@ -212,7 +212,7 @@ class AutomatedSCA:
         closes all connected devices
         Should be called before program ends to free the stage and arduino
         """
-        self.moveToSafePositions()
+        # self.moveToSafePositions()
         self.arm.close()
         self.priorController.close()
         # self.pressure.close()

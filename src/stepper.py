@@ -1,3 +1,4 @@
+from random import random
 import serial
 import time
 
