@@ -25,7 +25,7 @@ class PrinterHead:
     def calibPressureSystem(self):
         self.pressure.calibrate()
 
-    def savePressures(self, inP, eqP, outP):
+    def calibPressureVals(self, inP, eqP, outP):
         self.pressure.calibPressureValues(inP, eqP, outP)
 
     def stopPressure(self):

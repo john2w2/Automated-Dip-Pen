@@ -307,9 +307,12 @@ class AutomatedSCA:
 
         raise NotImplementedError("printer head not implemented yet")
 
-    def savePressures(self, inPressure: float, outPressure: float, eqPressure: float):
+    def calibPressureSystem(self):
+        self.printer.calibPressureSystem()
+
+    def calibPressureValues(self, inP, eqP, outP):
         """
         Saves the pressure to suck in, the pressure to suck out,
         and the pressure to maintain equilibrium (holding fluid in place)
         """
-        raise NotImplementedError("pressure system not implemented yet")
+        self.printer.calibPressureVals(inP, eqP, outP)
