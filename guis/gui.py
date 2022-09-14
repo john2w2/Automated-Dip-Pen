@@ -65,18 +65,20 @@ class HighLevel(ttk.LabelFrame):
 
     def openStartup(self):
         def on_closing():
-            startupMenu.destroy()
+            self.startupMenu.destroy()
             self.startupOpen = False
 
         if not self.startupOpen:
-            startupMenu = tk.Toplevel(root)
-            startupMenu.title("Startup Menu")
+            self.startupMenu = tk.Toplevel(root)
+            self.startupMenu.title("Startup Menu")
 
             # TODO: widget goes here
-            grid(self.StartupMenu(startupMenu), 0,0,0,0)
+            grid(self.StartupMenu(self.startupMenu), 0,0,0,0)
 
-            startupMenu.protocol("WM_DELETE_WINDOW", on_closing)
+            self.startupMenu.protocol("WM_DELETE_WINDOW", on_closing)
             self.startupOpen = True
+        else:
+            self.startupMenu.focus()
 
     def interrupt(self):
         """ sends an interrupt command to the microscope driver"""

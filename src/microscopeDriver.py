@@ -95,6 +95,7 @@ class MicroscopeDriver:
         :param cb: Callback function used to reenable buttons on UI
         :type cb: function
         """
+        #TODO: when this is implemented it will have to be threaded
         # self.microscope.printer.calibPressureSystem()
         print("recalibrating ob1 not done yet, I don't wanna wait for too long")
         pass
@@ -172,7 +173,7 @@ class MicroscopeDriver:
         :param outPressure: pressure to dispense all of a sample
         :type outPressure: float
         """
-        
+
         self.microscope.savePressures(inPressure=inPressure, eqPressure=eqPressure, outPressure=outPressure)
 
     def saveEthanolWells(self, wells: list[str]):
