@@ -16,10 +16,10 @@ class MicroscopeDriver:
 
     NOTE: callers of (most of these) functions should disable the appropriate
         buttons and pass a callback to re-enable those buttons. That
-        callback is called when the function returns 
+        callback is called when the function returns
     """
 
-    def __init__(self, priorPort: str, arduinoPort: str, cb, 
+    def __init__(self, priorPort: str, arduinoPort: str, cb,
                 plateSize: int =96, numChan:int = 40, chanDist:int = 260
     ):
         """
@@ -74,7 +74,7 @@ class MicroscopeDriver:
         :param cb: callback function used to reenable buttons on UI
         :type cb: function
         """
-        self.microscope.calibrateZArm()
+        self.microscope.calibrateArm()
         cb()
 
     def calibrateStage(self):
@@ -107,7 +107,7 @@ class MicroscopeDriver:
         # we are no longer using this
         """
         Resets the internal positioning of the stage.
-        This involves the stage moving until it hits 
+        This involves the stage moving until it hits
         its bottom and right limit switches
 
         :param cb: Callback function used to reenable buttons on UI
@@ -124,7 +124,7 @@ class MicroscopeDriver:
         position such that the first channel is focused
         on the + of the camera
         """
-        self.microscope.saveFirstChannelLocation()
+        self.microscope.calibFirstChannelCam()
 
     def saveFirstWellCamPos(self):
         """Saves the current stage position as the 
@@ -138,7 +138,7 @@ class MicroscopeDriver:
         """
         Saves offset between first channel and printer head as
         (offsetX, offsetY)
-        These values should be computed within a GUI function by 
+        These values should be computed within a GUI function by
         having the user print a drop, then focus that drop on the microscope,
         calculating the difference of those two positions.
 
@@ -148,16 +148,16 @@ class MicroscopeDriver:
         :type offsetY: int
         """
 
-        self.microscope.savePrinterDropOffset(offsetX, offsetY)
+        self.microscope.calibPrinterOffset(offsetX, offsetY)
 
     def saveVoltage(self, voltage: float):
-        """saves the given voltage as the one 
+        """saves the given voltage as the one
         that works for printing single cells
 
         :param voltage: voltage used to print a single cell
         :type voltage: float
         """
-        # NOTE: we might not save voltage since we're working with 
+        # NOTE: we might not save voltage since we're working with
         # JetServer, which controls the voltage
 
         raise NotImplementedError()
@@ -206,12 +206,12 @@ class MicroscopeDriver:
     # ========================================= #
     #               sanity checks               #
     # ========================================= #
-    # So the user can see that the calibration was correct 
+    # So the user can see that the calibration was correct
     # without breaking anything (hopefully)
 
     def testOverWell(self, wellID: str, cb):
         """
-        Moves the printer head to be just above a well to 
+        Moves the printer head to be just above a well to
         see if well positions are calibrated correctly
 
         :param wellID: well to move over
@@ -267,7 +267,7 @@ class MicroscopeDriver:
         cb()
 
     def testGrabSample(self, wellID: str, cb):
-        # TODO: this is probably not necessary, figured I might just have it 
+        # TODO: this is probably not necessary, figured I might just have it
         # here for completion
         """
         Grabs the sample from wellID
@@ -279,9 +279,9 @@ class MicroscopeDriver:
         """
         Prints a single drop to the specified channel.
         - throws exception if nothing in printer head
-        Intended to be used with a waste slide 
+        Intended to be used with a waste slide
         for checking if printing is working. Using
-        this on one of the extra channels on chip will 
+        this on one of the extra channels on chip will
         tell us if offset calibration + first channel calibration is good
         NOTE: since this is for sanity checking a single behavior, it doesn't
         include the step where we suck in a sample. There is another sanity check
@@ -327,9 +327,9 @@ class MicroscopeDriver:
         """Tests printing multiple drops of currently held
         sample to a single channel.
         Used to test
-        - first channel calibration 
-        - printer head offset calibration 
-        Intended to be used with a waste slide or one 
+        - first channel calibration
+        - printer head offset calibration
+        Intended to be used with a waste slide or one
         of the unneeded channels on chip.
         NOTE: this is testing just the behavior of printing multiple drops,
         so it doesn't include the step of sucking in the sample beforehand.
@@ -390,7 +390,7 @@ class MicroscopeDriver:
     def focusChannel(self, channelNum: int, cb):
         """Starts a thread that: focuses the given channel on the camera display
 
-        :param channelNum: number of channel to place 
+        :param channelNum: number of channel to place
         :type channelNum: _type_
         :param cb: callback function used to reenable buttons on UI
         :type cb: function
@@ -400,7 +400,7 @@ class MicroscopeDriver:
             raise ValueError("channelNum isn't valid")
 
         channelNum = int(channelNum)
-        
+
         t: Thread = Thread(target=self.__focusChannel, args=[channelNum, cb])
         self.currentThread = t
         t.start()
@@ -482,7 +482,7 @@ class MicroscopeDriver:
         """
         Moves the microscope components back to a safe state
         - Arm is in raised position
-        - stage is centered to show first channel 
+        - stage is centered to show first channel
         # TODO: should also set pressure to 0, voltage to OFF
         """
         # TODO: arm needs another position (safeup)
@@ -519,7 +519,7 @@ class MicroscopeDriver:
     # ============ mid-level functions ===============
 
     def cleanOutHead(self, cb):
-        # TODO: when this becomes a threaded method, need to change 
+        # TODO: when this becomes a threaded method, need to change
         # all calls from within microscopeDriver class to call
         # private method (unthreaded, __cleanOutHead)
         """Cleans the current sample from the printer head,
@@ -531,7 +531,7 @@ class MicroscopeDriver:
         t: Thread = Thread(target=self.__cleanOutHead, args=[cb])
         self.currentThread = t
         t.start()
-    
+
     def __cleanOutHead(self, cb):
        # TODO: we don't know the cleaning process yet
         # might look something like:
@@ -544,7 +544,7 @@ class MicroscopeDriver:
         # it raise an NotImplementedError (for testing purposes)
 
         # TODO: different behaviors for nothing vs something:
-            # nothing should do an additional first step: suck in ethanol 
+            # nothing should do an additional first step: suck in ethanol
         print("cleaning out the head")
         sleep(4)
         print("done cleaning out head")
@@ -554,12 +554,12 @@ class MicroscopeDriver:
         """
         Starts the thread to:
         Sucks the sample in wellID into the printer head
-       
-        :param wellID: The location of the sample on the plate 
+
+        :param wellID: The location of the sample on the plate
         :type wellID: str
         :param cb: callback function to re enable GUI buttons
         :type cb: function
-        :raises ValueError: if wellID isn't formatted correctly or if 
+        :raises ValueError: if wellID isn't formatted correctly or if
         """
 
         if not self.checkWellsValid([wellID]):
@@ -654,7 +654,7 @@ class MicroscopeDriver:
         then cleans out sample from printer head
         """
         if self.__checkInterrupt(cb): return
-        
+
         self.microscope.moveArmToUp()
         if self.__checkInterrupt(cb): return
         # arm is now up, safe to move stage
@@ -662,7 +662,7 @@ class MicroscopeDriver:
         # so we can call __grabSample, but don't want to re-enable buttons
         def fakeCB(): x = 3
         # get the desired sample, cleaning out last one if necessary
-        self.__grabSample(wellID, fakeCB) 
+        self.__grabSample(wellID, fakeCB)
         if self.__checkInterrupt(cb): return
 
         # move over initial channel
@@ -676,7 +676,7 @@ class MicroscopeDriver:
         # print to each specified channel
         for channel in channels:
             # move to the channel without lifting the head before or after
-            self.microscope.moveToChannelNoLift(channel) 
+            self.microscope.moveToChannelNoLift(channel)
             if self.__checkInterrupt(cb):return
 
             # put a single drop in the channel
@@ -693,14 +693,14 @@ class MicroscopeDriver:
 
     def printSamplesToK(self, wellIDs: list[str], k: int, cb):
         """
-        Prints a single drop from each sample in wellIDs to 
-        k different channels. 
-        Checks if inputs are valid, as well as if there 
+        Prints a single drop from each sample in wellIDs to
+        k different channels.
+        Checks if inputs are valid, as well as if there
         will be enough room to print everything
 
         :param wellIDs: _description_
         :type wellIDs: list[str]
-        :param k: number of channels to print each 
+        :param k: number of channels to print each
         :type k: int
         :raises ValueError: if wellIDs aren't formatted correctly
         or if there aren't enough channels left on the chip for printing
@@ -723,11 +723,11 @@ class MicroscopeDriver:
         wellIDsExist = True
         for wellID in wellIDs:
             if wellID not in self.sampleWells: wellIDsExist = False
-        
+
         if not wellIDsExist:
             cb()
             raise ValueError("not all wellIDs have sample in them")
-        
+
         if len(self.microscope.getEmptyChannels()) < len(wellIDs) * k:
             cb()
             raise ValueError("not enough open channels to print to")
@@ -763,7 +763,7 @@ class MicroscopeDriver:
 
         # now we're done. Clean out head once more for good measure
         self.__cleanOutHead(fakeCB)
-        cb() 
+        cb()
 
 #  ============= Helper methods ===================
 
@@ -804,7 +804,7 @@ class MicroscopeDriver:
         return True
 
     def checkChannelsValid(self, channels: list[str]) -> bool:
-        """        
+        """
         returns true if each channel in the channels list is valid for
         the current chip
 
@@ -830,19 +830,19 @@ class MicroscopeDriver:
 
     def getChannelContents(self) -> list[str]:
         """returns a list of which sample is stored
-        in each channel where list[i] is what is stored 
+        in each channel where list[i] is what is stored
         in channel i + 1. Channel numbers start from 1, not 0
 
         :return: a list of what is in each channel
         :rtype: list[str]
         """
 
-        return self.microscope.getChannelContents()
+        return self.microscope.getAllChannelContents()
 
     def __checkInterrupt(self, cb) -> bool:
         """
         Helper function to check if an interrupt command was issued
-        If one was issued, this command will call cb and return true. 
+        If one was issued, this command will call cb and return true.
         Otherwise, returns false
 
         :param cb: callback function used to reenable buttons on UI
@@ -859,7 +859,7 @@ class MicroscopeDriver:
     def close(self):
         """
         Closes all connected devices.
-        Issues an interrupt command, meaning all movement will be 
+        Issues an interrupt command, meaning all movement will be
         interrupted
         """
         #TODO: have an interrupt here

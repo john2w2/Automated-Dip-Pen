@@ -14,23 +14,24 @@ class Pressure:
   def calibrate(self):
     self.pcontroller.calibrate(save=True)
 
+  def calibPressureValues(self, inPressure: int, eqPressure: int, outPressure: int):
+    self.inPressure = inPressure
+    self.eqPressure = eqPressure
+    self.outPressure = outPressure
+
   def inThenHold(self):
     # TODO: don't hard-code channel as 4 (maybe)
     self.pcontroller.set_pressure(4, self.inPressure)
     sleep(1)
     self.pcontroller.set_pressure(4, self.eqPressure)
 
-  def blowOut(self):
+  def dispense(self):
     self.pcontroller.set_pressure(4, self.outPressure)
     sleep(2)
     self.pcontroller.set_pressure(4, self.eqPressure)
 
-  def savePressureVals(self, inP: int, eqP: int, outP: int):
-    self.inPressure = inP
-    self.eqPressure = eqP
-    self.outPressure = outP
-
   def stop(self):
+    # Set pressure to equilibrium pressure so nothing is drawn in or dispensed
     self.pcontroller.set_pressure(4, 0)
 
   def close(self):

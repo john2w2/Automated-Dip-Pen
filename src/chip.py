@@ -28,9 +28,17 @@ class Chip:
         self.chanContents = [Chip.CHAN_EMPTY for _ in range(self.numChan)]
 
 
-    def getChannelContents(self, channelNum: int) -> str:
+    def getChannelContent(self, channelNum: int) -> str:
+        """Return content (source well ID or CHAN_EMPTY) of specified channel
+
+        :param channelNum: Channel number
+        :type channelNum: int
+        :return: Source well ID or CHAN_EMPTY
+        :rtype: str
+        """
         assert (channelNum >= 1 and channelNum <= self.numChan)
         return self.chanContents[channelNum-1]
+
 
     def isEmpty(self, channelNum: int) -> bool:
         """Check if a channel is empty
@@ -40,7 +48,7 @@ class Chip:
         :return: True if channel empty; False otherwise
         :rtype: bool
         """
-        return self.getChannelContents(channelNum) == Chip.CHAN_EMPTY
+        return self.getChannelContent(channelNum) == Chip.CHAN_EMPTY
 
 
     def fillChannel(self, channelNum: int, wellID: str):
@@ -53,7 +61,20 @@ class Chip:
     def getAllChannelContents(self):
         return self.chanContents.copy()
 
+    def getAllEmptyChannels(self):
+        emptyChannels = []
+        for chan in range(1, self.numChan+1):
+            if self.getChannelContent(chan) == self.CHAN_EMPTY:
+                emptyChannels.append(chan)
+        return emptyChannels
+
+
     def __str__(self):
+        """Output textual representation of Chip
+
+        :return: Textual representation of Chip
+        :rtype: str
+        """
         return (
             "Chip:\n"
             "Number of Channels: {numChan}\n"

@@ -1,3 +1,4 @@
+from re import S
 import serial
 
 from plate import Plate, Plate6, Plate96, Plate384
@@ -5,6 +6,7 @@ from chip import Chip
 from arm import Arm
 from stage import Stage
 from printerHead import PrinterHead
+
 
 class AutomatedSCA:
     """
@@ -20,8 +22,8 @@ class AutomatedSCA:
     def __init__(self, plateSize, numChan, chanDist, 
                 priorPort: str = "COM6", arduinoPort="COM7"):
         """
-        initializes all devices for microscope
-        Also starts z axis arm calibration
+        Initialize all devices for microscope
+        Also starts z axis arm calibration TODO: I suggest doing this manually
 
         :param priorPort: COM port of stage, defaults to "COM6"
         :type priorPort: str, optional
@@ -71,6 +73,8 @@ class AutomatedSCA:
         """
         self.arm.interruptArm()
 
+
+    # TODO: what is this being used? Can we place with absolute distance (in um?)
     def moveStageByX(self, steps: int):
         """
         Moves the stage by steps steps. Intended
@@ -78,8 +82,7 @@ class AutomatedSCA:
         """
 
         self.arm.moveZUpPos()
-        # TODO: implement this in stage
-        self.stage.moveRelByX(steps * self.stage.stepSize)
+        self.stage.moveXInUM(steps * self.stage.stepSize)
 
     def moveChannelToCam(self, channelNum: int):
         """
@@ -93,15 +96,14 @@ class AutomatedSCA:
 
     def movePrinterIntoWell(self):
         """
-        Moves the printer head into a well, assuming the stage
+        Moves the printer head down into well pos, assuming the stage
         had already positioned the printer ehad over the well
         """
         self.arm.moveZWellPos()
 
-
     def movePrinterOverWell(self, wellID: str):
         """
-        Moves the printer head above the specified well
+        Moves the printer head above the specified well, does NOT move down into well
         Does nothing if z-axis arm isn't calibrated
 
         :param wellID: ID of well to move over
@@ -110,7 +112,7 @@ class AutomatedSCA:
         self.arm.moveZUpPos()
         self.stage.moveWellToPrinter(wellID)
 
-    def movePrinterOverChannel(self, channelNum:int):
+    def movePrinterOverChannel(self, channelNum: int):
         """moves the printer head vertically over channelNum
         Does NOT move the printer head down to the channel
 
@@ -128,7 +130,7 @@ class AutomatedSCA:
         """
         self.arm.moveZChannelPos()
 
-    def moveToChannelNoLift(self, channelNum:int):
+    def moveToChannelNoLift(self, channelNum: int):
         """unsafe function
         Moves the printer head above the specified channel
         without lifing beforehand. Intended to be used
@@ -144,13 +146,11 @@ class AutomatedSCA:
         # before moving and head remains down when function finishes
         self.stage.moveChannelToPrinter(channelNum)
 
-
     def moveArmToUp(self):
         """
         moves the printer arm to its default up position
         """
         self.arm.moveZUpPos()
-
 
     def printSample(self, channelNum: int):
         """
@@ -165,9 +165,9 @@ class AutomatedSCA:
         """
 
         self.chip.fillChannel(channelNum, self.currentSample)
-        self.printer.printSingle()
+        self.printer.printSingleDrop()
 
-    def suckInSample(self, wellID: str):
+    def getSample(self, wellID: str):
         """
         Sucks in the sample that the printer head
         is submerged in, storing that sample as the
@@ -180,21 +180,20 @@ class AutomatedSCA:
         # update which sample is stored in the printer
         self.currentSample = wellID
 
-    def blowOutSample(self):
+    def dispenseSample(self):
         """
         Applies a positive pressure, dispensing all of the currently
         held sample.
         """
         self.printer.dispenseSample()
+        self.currentSample = self.chip.CHAN_EMPTY
         # self.currentSample = "dirty" ???
-
-    # ======================================= #
-    #              semi-high-level            #
-    # ======================================= #
+        # TODO: add cleaning feature
 
     def moveToSafePositions(self):
-        #TODO: add a function in movement/arm to move up to a
+        # TODO: add a function in movement/arm to move up to a
         # much higher (safer) position than the default up position
+        # TODO: see if we end up using this?
         """
         Moves the printer arm to its up position and
         moves the stage such that the first well is under the printer
@@ -202,8 +201,8 @@ class AutomatedSCA:
         put the device in some "safe" state where the needle can't be broken
         """
 
-        self.arm.moveZUpPos()
-        self.stage.moveWellToPrinter("A1")
+        self.arm.moveToOrigin()
+        self.stage.moveToWell("A1")
 
     # ======================================= #
     #             helper / utility            #
@@ -213,26 +212,20 @@ class AutomatedSCA:
         closes all connected devices
         Should be called before program ends to free the stage and arduino
         """
-        # self.moveArmToUp()
+        self.moveToSafePositions()
         self.arm.close()
         self.priorController.close()
         # self.pressure.close()
 
     def getEmptyChannels(self):
         """
-        TODO: implement in Chip class?
         returns a list of channels that have not had anything printed to them
         """
+        return self.chip.getAllEmptyChannels()
 
-        # NOTE: probably a better way to do this
-        emptyChannels: list[int] = []
-        for i in range(1, self.chip.numChan + 1): # 1-based channel indexing
-            content = self.chip.getChannelContents(i)
-            if (content == self.chip.CHAN_EMPTY):
-                emptyChannels.append(i)
-        return emptyChannels
 
-    def getChannelContents(self):
+    # TODO: these 2 methods bother me, don't do anything different than original
+    def getAllChannelContents(self):
         return self.chip.getAllChannelContents()
 
     def getStageXY(self):
@@ -242,13 +235,13 @@ class AutomatedSCA:
     #               calibration               #
     # ======================================= #
 
-
-    def calibrateZArm(self):
+    def calibrateArm(self):
         """
         Calibrates the z-axis arm's 0 position
         Must be called before the arm is moved
 
         TODO: names might change once Y Arm added (calibrateZArm or something)
+        OR just say this is for all relevant arm motors
         """
         self.arm.calibrateOrigin()
 
@@ -259,7 +252,7 @@ class AutomatedSCA:
         """
         self.stage.calibOrigin()
 
-    def savePrinterDropOffset(self, offsetX: int, offsetY: int):
+    def calibPrinterOffset(self, offsetX: int, offsetY: int):
         """
         Saves the offset of the printer head
         Offset values come from GUI calibration method
@@ -286,15 +279,14 @@ class AutomatedSCA:
         # TODO: implement this soon using well center algo
         self.stage.calibFirstWellCamPos(self.stage.getStageXY())
 
-    def saveFirstChannelLocation(self):
+    def calibFirstChannelCam(self):
         """
         saves the current stage position as the
         position where first channel is lined up on + of camera
         """
-        # TODO: rename to calibrate
         self.stage.calibFirstChannelCamPos()
 
-    def saveVoltage(self, voltage:float):
+    def calibVoltage(self, voltage: float):
         """
         Saves the voltage needed to print a single drop
 
@@ -306,9 +298,12 @@ class AutomatedSCA:
 
         raise NotImplementedError("printer head not implemented yet")
 
-    def savePressures(self, inPressure:float, outPressure:float, eqPressure:float):
+    def calibPressureSystem(self):
+        self.printer.calibPressureSystem()
+
+    def calibPressureValues(self, inP, eqP, outP):
         """
         Saves the pressure to suck in, the pressure to suck out,
         and the pressure to maintain equilibrium (holding fluid in place)
         """
-        raise NotImplementedError("pressure system not implemented yet")
+        self.printer.calibPressureVals(inP, eqP, outP)
