@@ -6,25 +6,27 @@ class PrinterHead:
     # TODO: is this class even necessary ? it just calls single methods
     # but, it semantically combines the devices into one quite nicely
     # I just can't get over how these functions just call another function
+
     def __init__(self, priorController:serial.Serial):
         self.pressure = Pressure()
         self.voltage = Voltage(priorController)
         # TODO: store current sample here?
 
-    def printSingle(self):
+    def printSingleDrop(self):
         self.voltage.print()
 
     def getSample(self):
+        # Suck in sample using negative pressure
         self.pressure.inThenHold()
 
     def dispenseSample(self):
-        self.pressure.blowOut()    
+        self.pressure.calibPressureValues()
 
     def calibPressureSystem(self):
         self.pressure.calibrate()
 
     def savePressures(self, inP, eqP, outP):
-        self.pressure.savePressureVals(inP, eqP, outP)
+        self.pressure.calibPressureValues(inP, eqP, outP)
 
     def stopPressure(self):
         self.pressure.stop()

@@ -307,6 +307,10 @@ class Stage:
         """
         self.ser.close()
 
+
+
+    # Load calibration from file
+
     # def loadPrevOffset(self):
     #     """Loads previously calibrated printer offset values.
     #     If the data doesn't exist or is unreadable,

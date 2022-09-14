@@ -54,4 +54,4 @@ class Arm:
     def waitForReady(self, arduinoController: serial.Serial):
         while not arduinoController.in_waiting:
             sleep(0.01)
-        arduinoController.readline() # consumes first line, which should be 'arduino ready\r\n'     
+        arduinoController.readline() # consumes first line, which should be 'arduino ready\r\n'
