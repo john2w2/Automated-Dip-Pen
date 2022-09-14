@@ -108,7 +108,7 @@ class AutomatedSCA:
         :type wellID: str
         """
         self.arm.moveZUpPos()
-        self.stage.moveToWell(wellID)
+        self.stage.moveWellToPrinter(wellID)
 
     def movePrinterOverChannel(self, channelNum:int):
         """moves the printer head vertically over channelNum
@@ -203,7 +203,7 @@ class AutomatedSCA:
         """
 
         self.arm.moveZUpPos()
-        self.stage.moveToWell("A1")
+        self.stage.moveWellToPrinter("A1")
 
     # ======================================= #
     #             helper / utility            #
@@ -279,11 +279,12 @@ class AutomatedSCA:
 
     def saveFirstWellLocation(self):
         """
-        saves the current stage position where
-        the printer head is directly above the first well
+        saves the current stage position as the position
+        of the stage such that the center of the well
+        is focused on the camera
         """
-        # TODO: implement this soon using offset and well center algo
-        raise NotImplementedError(" saving first well location not yet implemented")
+        # TODO: implement this soon using well center algo
+        self.stage.calibFirstWellCamPos(self.stage.getStageXY())
 
     def saveFirstChannelLocation(self):
         """

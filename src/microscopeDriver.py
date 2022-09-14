@@ -95,8 +95,12 @@ class MicroscopeDriver:
         :param cb: Callback function used to reenable buttons on UI
         :type cb: function
         """
-        raise NotImplementedError("pressure system not implemented yet")
+        # self.microscope.printer.calibPressureSystem()
+        print("recalibrating ob1 not done yet, I don't wanna wait for too long")
+        pass
+        # raise NotImplementedError("pressure system not implemented yet")
 
+    # deprecated
     def __calibrateStage(self, cb):
         # NOTE: old method that previously called SIS
         # we are no longer using this
@@ -114,12 +118,20 @@ class MicroscopeDriver:
         cb()
 
     # NOTE: these saving functions don't need to be threaded
-    def saveFirstChannel(self):
+    def saveFirstChannelCamPos(self):
         """Saves the current stage position as the 
         position such that the first channel is focused
         on the + of the camera
         """
         self.microscope.saveFirstChannelLocation()
+
+    def saveFirstWellCamPos(self):
+        """Saves the current stage position as the 
+        position such that the center of the first well
+        is focused on the + of the camera
+        """
+        self.microscope.saveFirstWellLocation()
+
 
     def saveOffset(self, offsetX: int, offsetY: int):
         """
@@ -149,7 +161,7 @@ class MicroscopeDriver:
 
         raise NotImplementedError()
 
-    def savePressures(self, eqPressure: float, inPressure: float, outPressure: float):
+    def savePressures(self, inPressure: float, eqPressure: float,  outPressure: float):
         """
         Saves the pressure values as the ones used for experimenting
 
@@ -160,8 +172,8 @@ class MicroscopeDriver:
         :param outPressure: pressure to dispense all of a sample
         :type outPressure: float
         """
-
-        raise NotImplementedError("pressure system not integrated yet")
+        
+        self.microscope.savePressures(inPressure=inPressure, eqPressure=eqPressure, outPressure=outPressure)
 
     def saveEthanolWells(self, wells: list[str]):
         """Saves which wells contain cleaning solution
@@ -403,7 +415,7 @@ class MicroscopeDriver:
         """
         self.microscope.moveArmToUp()
         if self.__checkInterrupt(cb): return
-        self.microscope.focusChannel(channelNum)
+        self.microscope.moveChannelToCam(channelNum)
         cb()
 
     def printSampleToChannel(self, wellID: str, channelNum: int, cb):
@@ -810,7 +822,7 @@ class MicroscopeDriver:
             return False
 
         chanSet = list(dict.fromkeys(channels))
-        if len(chanSet != len(channels)):
+        if len(chanSet) != len(channels):
             return False
 
         return True

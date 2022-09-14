@@ -12,6 +12,12 @@ class Arm:
 
         self.zmotor = ZMotor(arduinoController=self.arduinoController)
 
+        # NOTE: these are all placeholder
+        # TODO: load positions from file
+        self.zUpPos = -100 
+        self.zWellPos = -200
+        self.zChannelPos = -150
+
     def calibrateOrigin(self):
         self.zmotor.calibrateOrigin()
         # TODO: self.ymotor.calibrateOrigin() later on

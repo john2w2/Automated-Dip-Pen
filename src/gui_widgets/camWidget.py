@@ -4,7 +4,7 @@ sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
 
 from time import sleep
 from tkinter import ttk
-from threading import *
+from threading import Thread
 # from gui_widgets.guiCamera import GUICamera
 from camera import Camera
 
@@ -64,6 +64,7 @@ class CamWidget(tk.Frame):
                 if self.stopCamThreads: break
                 imgtk = ImageTk.PhotoImage(image=img)
                 self.canvas.create_image(1, 1, anchor="nw", image=imgtk)
+            del cam # TODO: maybe have a close function for camera
             print("camera stuff is donezo")
         except Exception as err:
             print(err)

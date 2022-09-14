@@ -93,6 +93,7 @@ class Stage:
         self.writeRead("P,0,0,0")  # Redefine this location as origin
 
     def calibFirstWellCamPos(self, stagePos: tuple):
+        # TODO: can we call self.getStageXY() here?
         """Save stage coordinates for well A1 under camera
 
         :param stagePos: Stage coordinates for when first well is under CAMERA
@@ -313,163 +314,172 @@ class Stage:
         """
         self.ser.close()
 
-    # def loadPrevOffset(self):
-    #     """Loads previously calibrated printer offset values.
-    #     If the data doesn't exist or is unreadable,
-    #     overwrites / creates the file and loads default values
-    #     """
-    #     parentDir = pathlib.Path(__file__).parent.resolve(
-    #     )  # reference to parent directory of this file
-    #     calibPath = os.path.join(parentDir, 'calibrationFiles')
-    #     offsetPath = os.path.join(calibPath, 'offset.txt')
+    def loadPrevOffset(self):
+        """Loads previously calibrated printer offset values.
+        If the data doesn't exist or is unreadable,
+        overwrites / creates the file and loads default values
+        """
+        parentDir = pathlib.Path(__file__).parent.resolve(
+        )  # reference to parent directory of this file
+        calibPath = os.path.join(parentDir, 'calibrationFiles')
+        offsetPath = os.path.join(calibPath, 'offset.txt')
 
-    #     if not os.path.exists(calibPath):
-    #         # calibration directory doesn't exist
-    #         os.makedirs(calibPath)
-    #         self.__makeDefOffsetFile(pathToData=offsetPath)
-    #     else:
-    #         if not os.path.exists(offsetPath):
-    #             # calibration directory exists, but offset.txt doesn't
-    #             self.__makeDefOffsetFile(pathToData=offsetPath)
-    #         else:
-    #             # calibrationFiles/offset.txt exists
-    #             with open(offsetPath, 'r+') as f:
-    #                 # check if file is well formatted
-    #                 line1 = f.readline()  # can be None
-    #                 line2 = f.readline()  # can be None
+        if not os.path.exists(calibPath):
+            # calibration directory doesn't exist
+            os.makedirs(calibPath)
+            self.__makeDefOffsetFile(pathToData=offsetPath)
+        else:
+            if not os.path.exists(offsetPath):
+                # calibration directory exists, but offset.txt doesn't
+                self.__makeDefOffsetFile(pathToData=offsetPath)
+            else:
+                # calibrationFiles/offset.txt exists
+                with open(offsetPath, 'r+') as f:
+                    # check if file is well formatted
+                    line1 = f.readline()  # can be None
+                    line2 = f.readline()  # can be None
 
-                    # try:  # this will fail if formatting was bad
-                    #     # if any formatting error, it will happen here
-                    #     offsets = (int(line1), int(line2))
-                    #     self.printerOffset = offsets
-                    # except:
-                    #     print("file is not formatted correctly, using default values")
-                    #     self.__makeDefOffsetFile(pathToData=offsetPath)
+                    try:  # this will fail if formatting was bad
+                        # if any formatting error, it will happen here
+                        offsets = (int(line1), int(line2))
+                        self.printerOffset = offsets
+                    except:
+                        print("file is not formatted correctly, using default values")
+                        self.__makeDefOffsetFile(pathToData=offsetPath)
 
-    # def restoreDefaultOffset(self):
-    #     """
-    #     Loads and stores the default printer offset values
-    #     Intended to be used when you mess up calibrating and want a clean slate
-    #     """
-    #     parentDir = pathlib.Path(__file__).parent.resolve()
-    #     calibPath = os.path.join(parentDir, 'calibrationFiles')
-    #     offsetPath = os.path.join(calibPath, 'offset.txt')
-    #     self.__makeDefOffsetFile(pathToData=offsetPath)
+    def restoreDefaultOffset(self):
+        """
+        Loads and stores the default printer offset values
+        Intended to be used when you mess up calibrating and want a clean slate
+        """
+        parentDir = pathlib.Path(__file__).parent.resolve()
+        calibPath = os.path.join(parentDir, 'calibrationFiles')
+        offsetPath = os.path.join(calibPath, 'offset.txt')
+        self.__makeDefOffsetFile(pathToData=offsetPath)
 
-    # def saveNewOffset(self, newX: int, newY: int):
-    #     """
-    #     Saves a new (x,y) offset in the device and writes them
-    #     to a file for future use
+    def saveNewOffset(self, newX: int, newY: int):
+        """
+        Saves a new (x,y) offset in the device and writes them
+        to a file for future use
 
-    #     :param newX: new x offset ( in steps )
-    #     :type newX: int
-    #     :param newY: new y offset ( in steps )
-    #     :type newY: int
-    #     """
-    #     parentDir = pathlib.Path(__file__).parent.resolve()
-    #     calibPath = os.path.join(parentDir, 'calibrationFiles')
-    #     offsetPath = os.path.join(calibPath, 'offset.txt')
+        :param newX: new x offset ( in steps )
+        :type newX: int
+        :param newY: new y offset ( in steps )
+        :type newY: int
+        """
+        parentDir = pathlib.Path(__file__).parent.resolve()
+        calibPath = os.path.join(parentDir, 'calibrationFiles')
+        offsetPath = os.path.join(calibPath, 'offset.txt')
 
-    #     if not os.path.exists(calibPath):
-    #         os.makedirs(calibPath)
+        if not os.path.exists(calibPath):
+            os.makedirs(calibPath)
 
-        # with open(offsetPath, 'w+') as f:
-        #     self.printerOffset = (newX, newY)
-        #     f.write(f"{str(newX)}\n")
-        #     f.write(str(newY))
+        with open(offsetPath, 'w+') as f:
+            self.printerOffset = (newX, newY)
+            f.write(f"{str(newX)}\n")
+            f.write(str(newY))
 
-    # def __makeDefOffsetFile(self, pathToData, defaultX: int = -50000, defaultY: int = -50000):
-    #     """
-    #     Helper function to load default printer offset values
-    #     and store them in a file
+    def __makeDefOffsetFile(self, pathToData, defaultX: int = -50000, defaultY: int = -50000):
+        """
+        Helper function to load default printer offset values
+        and store them in a file
 
-    #     TODO: get more accurate default offset values
+        TODO: get more accurate default offset values
 
-        # :param pathToData: path to the file in which offset values are stored
-        # :type pathToData: str
-        # :param defaultX: default X offset, defaults to -50000
-        # :type defaultX: int, optional
-        # :param defaultY: default Y offset, defaults to -50000
-        # :type defaultY: int, optional
+        :param pathToData: path to the file in which offset values are stored
+        :type pathToData: str
+        :param defaultX: default X offset, defaults to -50000
+        :type defaultX: int, optional
+        :param defaultY: default Y offset, defaults to -50000
+        :type defaultY: int, optional
         """
         self.printerOffset = (defaultX, defaultY)
 
-    #     with open(pathToData, 'w+') as f:
-    #         f.write(f"{str(defaultX)}\n")
-    #         f.write(str(defaultY))
+        with open(pathToData, 'w+') as f:
+            f.write(f"{str(defaultX)}\n")
+            f.write(str(defaultY))
 
-    # def loadPrevFirstChan(self):
-    #     """
-    #     Loads most recently saved first channel (x,y) values.
-    #     If the data doesn't exist or is unreadable, this method
-    #     will overwrite / create the file and load the default values
-    #     """
-    #     parentDir = pathlib.Path(__file__).parent.resolve()
-    #     calibPath = os.path.join(parentDir, 'calibrationFiles')
-    #     channelPath = os.path.join(calibPath, 'firstChannel.txt')
+    def loadPrevFirstChan(self):
+        """
+        Loads most recently saved first channel (x,y) values.
+        If the data doesn't exist or is unreadable, this method
+        will overwrite / create the file and load the default values
+        """
+        parentDir = pathlib.Path(__file__).parent.resolve()
+        calibPath = os.path.join(parentDir, 'calibrationFiles')
+        channelPath = os.path.join(calibPath, 'firstChannel.txt')
 
-    #     if not os.path.exists(calibPath):
-    #         # calibration folder doesn't exist
-    #         os.makedirs(calibPath)
-    #         self.__makeDefFirstChannelFile(pathToData=channelPath)
-    #     else:
-    #         if not os.path.exists(channelPath):
-    #             # calibration folder exists, but file holding channel values doesn't
-    #             self.__makeDefOffsetFile(pathToData=channelPath)
-    #         else:
-    #             # the first channel calibration file and exists
-    #             with open(channelPath, 'r+') as f:
-    #                 line1 = f.readline()
+        if not os.path.exists(calibPath):
+            # calibration folder doesn't exist
+            os.makedirs(calibPath)
+            self.__makeDefFirstChannelFile(pathToData=channelPath)
+        else:
+            if not os.path.exists(channelPath):
+                # calibration folder exists, but file holding channel values doesn't
+                self.__makeDefFirstChannelFile(pathToData=channelPath)
+            else:
+                # the first channel calibration file and exists
+                with open(channelPath, 'r+') as f:
+                    line1 = f.readline() # can be None
+                    line2 = f.readline()  # can be None
 
-    # def restoreDefaultFirstChannel(self):
-    #     """
-    #     Resets the stored first channel location, storing the
-    #     default values in the calibration file and loading the
-    #     default values into the stage
-    #     """
-    #     parentDir = pathlib.Path(__file__).parent.resolve()
-    #     calibPath = os.path.join(parentDir, 'calibrationFiles')
-    #     channelPath = os.path.join(calibPath, 'firstChannel.txt')
-    #     self.__makeDefFirstChannelFile(pathToData=channelPath)
+                    try:  # this will fail if formatting was bad
+                        # if any formatting error, it will happen here
+                        chanLoc = (int(line1), int(line2)) # error would happen here, before setting
+                        self.firstChannelCamPos = chanLoc
+                    except:
+                        print("file is not formatted correctly, using default values")
+                        self.__makeDefFirstChannelFile(pathToData=channelPath)
 
-    # def saveNewFirstChannel(self):
-    #     # TODO: this should replace setFirstChannel
-    #     """
-    #     Grabs the position of the stage and stores it as the
-    #     'first channel on camera' position. Also stores those
-    #     values in a file to be used on future experiments
-    #     """
-    #     parentDir = pathlib.Path(__file__).parent.resolve()
-    #     calibPath = os.path.join(parentDir, 'calibrationFiles')
-    #     channelPath = os.path.join(calibPath, 'firstChannel.txt')
+    def restoreDefaultFirstChannel(self):
+        """
+        Resets the stored first channel location, storing the
+        default values in the calibration file and loading the
+        default values into the stage
+        """
+        parentDir = pathlib.Path(__file__).parent.resolve()
+        calibPath = os.path.join(parentDir, 'calibrationFiles')
+        channelPath = os.path.join(calibPath, 'firstChannel.txt')
+        self.__makeDefFirstChannelFile(pathToData=channelPath)
 
-    #     if not os.path.exists(calibPath):
-    #         os.makedirs(calibPath)
+    def saveNewFirstChannel(self):
+        # TODO: this should replace setFirstChannel
+        """
+        Grabs the position of the stage and stores it as the
+        'first channel on camera' position. Also stores those
+        values in a file to be used on future experiments
+        """
+        parentDir = pathlib.Path(__file__).parent.resolve()
+        calibPath = os.path.join(parentDir, 'calibrationFiles')
+        channelPath = os.path.join(calibPath, 'firstChannel.txt')
 
-    #     with open(channelPath, 'w+') as f:
-    #         x = self.getStageX()
-    #         y = self.getStageX()  # TODO: Y
+        if not os.path.exists(calibPath):
+            os.makedirs(calibPath)
 
-    #         self.firstChannelCamPos = (x, y)
+        with open(channelPath, 'w+') as f:
+            x = self.getStageX()
+            y = self.getStageY()  # TODO: Y
 
-    #         f.write(f"{str(x)}\n")
-    #         f.write(str(y))
+            self.firstChannelCamPos = (x, y)
 
-    # # NOTE: can change these defaults in the future
-    # def __makeDefFirstChannelFile(self, pathToData: str, defaultX: int = -2016268, defaultY: int = -1409635):
-    #     """
-    #     Helper method to create / overwrite the stored first channel location with default values.
-    #     Also loads those default values into the stage
+            f.write(f"{str(x)}\n")
+            f.write(str(y))
 
-    #     :param pathToData: path to file holding first channel values
-    #     :type pathToData: str
-    #     :param defaultX: default x value (in steps), defaults to -1635268
-    #     :type defaultX: int, optional
-    #     :param defaultY: default y value (in steps), defaults to -1537768
-    #     :type defaultY: int, optional
-    #     """
-    #     self.firstChannelCamPos = (defaultX, defaultY)
+    # NOTE: can change these defaults in the future
+    def __makeDefFirstChannelFile(self, pathToData: str, defaultX: int = -2016268, defaultY: int = -1409635):
+        """
+        Helper method to create / overwrite the stored first channel location with default values.
+        Also loads those default values into the stage
 
-    #     with open(pathToData, 'w+') as f:
-    #         f.write(f"{str(defaultX)}\n")
-    #         f.write(str(defaultY))
+        :param pathToData: path to file holding first channel values
+        :type pathToData: str
+        :param defaultX: default x value (in steps), defaults to -1635268
+        :type defaultX: int, optional
+        :param defaultY: default y value (in steps), defaults to -1537768
+        :type defaultY: int, optional
+        """
+        self.firstChannelCamPos = (defaultX, defaultY)
+
+        with open(pathToData, 'w+') as f:
+            f.write(f"{str(defaultX)}\n")
+            f.write(str(defaultY))

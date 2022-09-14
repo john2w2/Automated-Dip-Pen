@@ -1,3 +1,5 @@
+from cgitb import text
+from email import message
 import tkinter as tk
 import sys
 sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
@@ -131,6 +133,7 @@ class HighLevel(ttk.LabelFrame):
             self.items = [self.priorLab, self.priorEnt, self.ardLab, self.ardEnt, startupBtn, dd, 
                             numChanLab, self.numChanEnt, chanDistLab, self.chanDistEnt]
 
+            # if driver is already connected, we don't want to allow them to try to connect again
             if driver != None:
                 for item in self.items: item["state"] = "disabled"
 
@@ -299,23 +302,13 @@ class CalibrationMenu(ttk.Frame):
         self.calibArmBtn = ttk.Button(self, text="recalibrate arm Z axis", command=self.calibArm)
         grid(self.calibArmBtn, 0, 0, 0, 0)
 
-        self.calibStageFrame = ttk.Labelframe(self, text="Stage Positioning")
+        self.buttons = [self.calibArmBtn]
 
-        resetStageLab = ttk.Label(self.calibStageFrame, text="move stage until it hits the bottom and right \n limit switches, then hit \n \"recalibrate stage positioning\"")
-        grid(resetStageLab, 0, 0, 5, 5)
-        self.resetStageBtn = ttk.Button(self.calibStageFrame, text="recalibrate stage positioning", command=self.resetStage)
-        grid(self.resetStageBtn, 1,0,5,5)
+        stageCal = self.StageCalibration(self, self.buttons)
+        grid(stageCal, 2, 0,0,0)
 
-        grid(self.calibStageFrame, 1, 0, 0, 0)
-
-        self.firstChanBtn = ttk.Button(self, text="save current position as 'first channel on camera'", command=self.saveFirstChannel)
-        grid(self.firstChanBtn, 2, 0, 0, 0)
-
-        self.pressureBtn = ttk.Button(self, text="recalibrate pressure system", command=self.recalibratePressureSystem)
-        grid(self.pressureBtn, 3, 0,0,0)
-
-        self.buttons = [self.calibArmBtn, self.resetStageBtn, self.firstChanBtn, self.pressureBtn]
-
+        pressureCal = self.PressureCalibration(self, self.buttons)
+        grid(pressureCal, 3, 0, 0, 0)
         self.offset = self.OffSetCalibration(self, self.buttons)
         grid(self.offset, 4, 0, 0,0)
 
@@ -332,41 +325,7 @@ class CalibrationMenu(ttk.Frame):
             self.offset.getStartBtn()["state"] = "normal"
             CALIB_DICT["arm"].config(text=f"arm: {CALIBRATED}", background="#65d92b")
 
-        # def fakeThread(cb): sleep(1); cb()
-        #TODO: call in driver
-
-        # driver.calibrateZArm()
-        # mimic calling driver
-        t=Thread(target=driver.calibrateZArm, args=[cb])
-        t.start()
-
-    def resetStage(self):
-        """ resets the origin of the stage """
-        # for btn in self.buttons: btn["state"] = "disabled"
-        # self.offset.getStartBtn()["state"] = "disabled"
-
-        # def cb():
-        #     for btn in self.buttons: btn["state"] = "normal"
-        #     self.offset.getStartBtn()["state"] = "normal"
-
-        # def fakeThread(cb): sleep(1); cb()
-        # #TODO: call in driver
-
-        # # driver.resetStageOrigin()
-        # # mimic calling driver
-        # t=Thread(target=fakeThread, args=[cb])
-        # t.start()
-        driver.calibrateStage()
-        CALIB_DICT["stage"].config(text=f"stage: {CALIBRATED}", background="#65d92b")
-
-    def saveFirstChannel(self):
-        """ 
-            saves the position of the stage as the one such that the first channel
-            is in the center of the + on the camera
-        """
-        driver.saveFirstChannel()
-        CALIB_DICT["first channel"].config(text=f"first channel: {LOADED}", background="#65d92b")
-        # TODO: change calibration status of first channel
+        driver.calibrateZArm(cb)
 
     def recalibratePressureSystem(self):
         """ recalibrates the pressure sytem (make sure you have caps on)"""
@@ -384,11 +343,94 @@ class CalibrationMenu(ttk.Frame):
         t=Thread(target=fakeThread, args=[cb])
         t.start()
 
+    class StageCalibration(ttk.LabelFrame):
+        def __init__(self, parent, calibButtons):
+            ttk.Labelframe.__init__(self, parent, text="Stage Calibration")
+            self.calibStageFrame = ttk.Labelframe(self, text="Positioning")
+
+            resetStageLab = ttk.Label(self.calibStageFrame, text="move stage until it hits the bottom and right \n limit switches, then hit \n \"recalibrate stage positioning\"")
+            grid(resetStageLab, 0, 0, 5, 5)
+            self.resetStageBtn = ttk.Button(self.calibStageFrame, text="recalibrate stage positioning", command=self.resetStagePositioning)
+            grid(self.resetStageBtn, 1,0,5,5)
+
+            grid(self.calibStageFrame, 0, 0, 5, 5)
+
+            self.firstChanBtn = ttk.Button(self, text="save current position as 'first channel on camera'", command=self.saveFirstChannelCamPos)
+            grid(self.firstChanBtn, 1, 0, 5, 5)
+
+            self.firstWellBtn = ttk.Button(self, text="save current position as 'first well centered on camera'", command=self.saveFirstWellCamPos)
+            grid(self.firstWellBtn, 2,0,5,5)
+            calibButtons.extend([self.resetStageBtn, self.firstChanBtn, self.firstWellBtn])
+
+        def resetStagePositioning(self):
+            driver.calibrateStage()
+            CALIB_DICT["stage"].config(text=f"stage: {CALIBRATED}", background="#65d92b")
+
+        def saveFirstChannelCamPos(self):
+            driver.saveFirstChannelCamPos()
+            CALIB_DICT["first channel"].config(text=f"first channel: {CALIBRATED}", background="#65d92b")
+
+        def saveFirstWellCamPos(self):
+            driver.saveFirstWellCamPos()
+            CALIB_DICT["first well"].config(text=f"first well: {CALIBRATED}", background="#65d92b")
+
+    class PressureCalibration(ttk.LabelFrame):
+        def __init__(self, parent, calibButtons):
+            ttk.LabelFrame.__init__(self, parent, text="Pressure Calibration")
+            # recalibrate OB1
+            self.calOB1 = ttk.Button(self, text="recalibrate OB1 (make sure it's capped)", command=self.calibOB1)
+            # save the 3 pressure values
+            grid(self.calOB1, 0, 0, 5, 5)
+            self.pressureFrame = ttk.LabelFrame(self, text="Specify Pressure Values")
+
+            inPLab = ttk.Label(self.pressureFrame, text="In pressure")
+            self.inPEnt = ttk.Entry(self.pressureFrame)
+            self.inPEnt.insert(0, "-80.0")
+            grid(inPLab, 0, 0, 5, 0)
+            grid(self.inPEnt, 0, 1, 5, 0)
+
+            eqPLab = ttk.Label(self.pressureFrame, text="Equilibrium pressure")
+            self.eqPEnt = ttk.Entry(self.pressureFrame)
+            self.eqPEnt.insert(0, "0")
+            grid(eqPLab, 1, 0, 5, 0)
+            grid(self.eqPEnt, 1, 1, 5, 0)
+
+            outPLab = ttk.Label(self.pressureFrame, text="Out pressure")
+            self.outPEnt = ttk.Entry(self.pressureFrame)
+            self.outPEnt.insert(0, "80.0")
+            grid(outPLab, 2, 0, 5, 0)
+            grid(self.outPEnt, 2, 1, 5, 0)
+
+            saveVals = ttk.Button(self.pressureFrame, text="Save pressure values", command=self.savePressures)
+            saveVals.grid(row=3, column=0, columnspan=2, padx=5, pady=5)
+
+            grid(self.pressureFrame, 1, 0, 5, 5)
+
+        def calibOB1(self):
+            def cb():
+                #TODO: fill this in
+                pass
+            driver.recalibrateOB1(cb)
+
+        def savePressures(self):
+            # check if inputs are valid
+            inP = self.inPEnt.get()
+            eqP = self.eqPEnt.get()
+            outP = self.outPEnt.get()
+            try:
+                inP = float(inP)
+                eqP = float(eqP)
+                outP = float(outP)
+                driver.savePressures(inPressure=inP, eqPressure=eqP, outPressure=outP)
+            except ValueError:
+                messagebox.showwarning(title="bad pressure input", message="please check your values")
+
     class OffSetCalibration(ttk.LabelFrame):
+        # TODO: this will probably be deprecated by something else 
         def __init__(self, parent, otherButtons):
             ttk.LabelFrame.__init__(self, parent, text="Printer Offset")
             for i in range(5): self.rowconfigure(i, weight=1)
-            self.otherButtons = otherButtons # to disable other calibrations when getting offset
+            self.otherButtons = otherButtons # to disable other calibrations when getting offset, 
 
             self.columnconfigure(0, weight=1)
             self.infoLabel = ttk.Label(self, text="press start to begin", background="#eb584d")
@@ -564,7 +606,6 @@ class CalibratedList(ttk.LabelFrame):
 
         for child in self.winfo_children(): STARTUP_DISABLED_BUTTONS.append(child)
 
-
 class AdditionalCommands(ttk.LabelFrame):
     def __init__(self, parent):
         ttk.LabelFrame.__init__(self, parent, text="Additional Commands")
@@ -629,9 +670,19 @@ class FocusChannel(ttk.LabelFrame):
         STARTUP_DISABLED_BUTTONS.append(self.chanEnt)
         grid(self.chanEnt, 0, 0, 0, 0)
 
-        goBtn = ttk.Button(self, text="focus")
+        goBtn = ttk.Button(self, text="focus", command = self.focus)
         STARTUP_DISABLED_BUTTONS.append(goBtn)
         grid(goBtn, 0,1,0,0)
+
+    def focus(self):
+        def cb():
+            for item in DISABLE_BUTTONS: item["state"] = "normal"
+        chan = self.chanEnt.get()
+        try:
+            chan = int(chan)
+            driver.focusChannel(chan, cb)
+        except ValueError:
+            messagebox.showwarning(title="invalid channel", message=f"please enter a channel between 1 and {driver.microscope.chip.numChan}")
     
     # TODO: call focus channel in driver
         
