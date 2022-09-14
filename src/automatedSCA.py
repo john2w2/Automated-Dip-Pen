@@ -228,19 +228,13 @@ class AutomatedSCA:
 
     def getEmptyChannels(self):
         """
-        TODO: implement in Chip class?
         returns a list of channels that have not had anything printed to them
         """
+        return self.chip.getAllEmptyChannels()
 
-        # NOTE: probably a better way to do this
-        emptyChannels: list[int] = []
-        for i in range(1, self.chip.numChan + 1):  # 1-based channel indexing
-            content = self.chip.getChannelContents(i)
-            if (content == self.chip.CHAN_EMPTY):
-                emptyChannels.append(i)
-        return emptyChannels
 
-    def getChannelContents(self):
+    # TODO: these 2 methods bother me, don't do anything different than original
+    def getAllChannelContents(self):
         return self.chip.getAllChannelContents()
 
     def getStageXY(self):
@@ -250,12 +244,13 @@ class AutomatedSCA:
     #               calibration               #
     # ======================================= #
 
-    def calibrateZArm(self):
+    def calibrateArm(self):
         """
         Calibrates the z-axis arm's 0 position
         Must be called before the arm is moved
 
         TODO: names might change once Y Arm added (calibrateZArm or something)
+        OR just say this is for all relevant arm motors
         """
         self.arm.calibrateOrigin()
 
@@ -266,7 +261,7 @@ class AutomatedSCA:
         """
         self.stage.calibOrigin()
 
-    def savePrinterDropOffset(self, offsetX: int, offsetY: int):
+    def calibPrinterOffset(self, offsetX: int, offsetY: int):
         """
         Saves the offset of the printer head
         Offset values come from GUI calibration method
@@ -293,15 +288,14 @@ class AutomatedSCA:
         raise NotImplementedError(
             " saving first well location not yet implemented")
 
-    def saveFirstChannelLocation(self):
+    def calibFirstChannelCam(self):
         """
         saves the current stage position as the
         position where first channel is lined up on + of camera
         """
-        # TODO: rename to calibrate
-        self.stage.setFirstChannelCamPos()
+        self.stage.calibFirstChannelCamPos()
 
-    def saveVoltage(self, voltage: float):
+    def calibVoltage(self, voltage: float):
         """
         Saves the voltage needed to print a single drop
 
