@@ -10,10 +10,15 @@ class Voltage:
         self.writeCmd("TTL,0,1")
         time.sleep(self.shockDuration)
         self.writeCmd("TTL,0,0")
+        time.sleep(0.1)
+        self.clearSer()
 
     def writeCmd(self, cmd):
         cmd = f"{cmd}\r"
         self.ser.write(cmd.encode())
+
+    def clearSer(self):
+        self.ser.read_all()
 
     # NOTE: on program shutdown, we should send a TTL,0,0
     # to make sure no voltage is being applied

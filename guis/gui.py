@@ -1,5 +1,3 @@
-from cgitb import text
-from email import message
 import tkinter as tk
 import sys
 sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
@@ -307,34 +305,31 @@ class CalibrationMenu(ttk.Frame):
         self.buttons = []
 
         #TODO: figure out how to make calib button not obscenely large
-        self.calibArmBtn = ttk.Button(self, text="recalibrate arm Z axis", command=self.calibArm)
-        self.calibArmBtn.grid(row=0, column=0, rowspan=1, sticky='nsew')
+        self.calibArmBtn = ttk.Button(self, text="calibrate arm Z axis", command=self.calibArm)
+        self.calibArmBtn.grid(row=0, column=0, rowspan=1, sticky='nsew', padx=5, pady=5)
 
         stageCal = self.StageCalibration(self, self.buttons)
         # grid(stageCal, 1, 0,5,5)
-        stageCal.grid(row=1, column=0, rowspan=4, sticky='nsew')
+        stageCal.grid(row=1, column=0, rowspan=3,padx=5, pady=5, sticky='nsew')
 
         printDrop = self.PrintDropTest(self, self.buttons)
         # grid(printDrop, 2, 0, 5,5 )
-        printDrop.grid(row=5, column=0, rowspan=5, sticky='nsew')
+        printDrop.grid(row=0, column=1, rowspan=2, padx=5, pady=5, sticky='nsew')
 
         getSample = self.ManualGetSample(self, self.buttons)
-        getSample.grid(row=0, column=1, rowspan=2, sticky='nsew', padx=5, pady=5)
+        getSample.grid(row=5, column=0, rowspan=5, sticky='nsew', padx=5, pady=5)
+        # getSample.grid(row=0, column=1, rowspan=2, sticky='nsew', padx=5, pady=5)
         # grid(getSample, 0, 1, 5, 5)
 
         self.offset = self.OffSetCalibration(self, self.buttons)
         # grid(self.offset, 4, 1, 5,5)
         self.offset.grid(row=2, column=1, rowspan=2, sticky='nsew', padx=5, pady=5)
 
-
         pressureCal = self.PressureCalibration(self, self.buttons)
         # grid(pressureCal, 5, 1, 5, 5)
         pressureCal.grid(row=4, column=1, rowspan=2, sticky='nsew', padx=5, pady=5)
 
-
         for item in self.buttons: item["state"] = "disabled"
-
-
 
     def calibArm(self):
         """ recalibrates the z axis arm """
@@ -430,7 +425,7 @@ class CalibrationMenu(ttk.Frame):
             grid(self.outPEnt, 2, 1, 5, 0)
 
             saveVals = ttk.Button(self.pressureFrame, text="Save pressure values", command=self.savePressures)
-            saveVals.grid(row=3, column=0, columnspan=2, padx=5, pady=5)
+            saveVals.grid(row=3, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
 
             grid(self.pressureFrame, 1, 0, 5, 5)
 
@@ -568,10 +563,10 @@ class CalibrationMenu(ttk.Frame):
             self.instructions = ttk.Label(self, text="TBD, just a static description of each button")
             grid(self.instructions, 0, 0, 5, 0)
 
-            self.startBtn = ttk.Button(self, text="start")
+            self.startBtn = ttk.Button(self, text="start", command=self.start)
             grid(self.startBtn, 1, 0, 5, 0)
 
-            self.toChipBtn = ttk.Button(self, text="move arm down to chip\n(make sure arm is above chip before)")
+            self.toChipBtn = ttk.Button(self, text="move arm down to chip\n(make sure arm is above chip before)", command=self.toChip)
             grid(self.toChipBtn, 2, 0, 5, 0)
             self.toChipBtn["state"] = "disabled"
 
@@ -581,89 +576,158 @@ class CalibrationMenu(ttk.Frame):
             self.eqPEnt = ttk.Entry(self.pressureFrame)
             grid(self.eqPEnt, 0, 0, 0, 0)
             self.eqPEnt["state"] = "disabled"
-            self.eqPBtn = ttk.Button(self.pressureFrame, text="update") # save pressure value, then set to eqp pressure
+            self.eqPBtn = ttk.Button(self.pressureFrame, text="update", command=self.saveSetEqP) # save pressure value, then set to eqp pressure
             # NOTE: should probably limit eq pressure here between -20.0 to 20.0
             grid(self.eqPBtn, 0, 1, 0, 0)
             self.eqPBtn["state"] = "disabled"
 
             grid(self.pressureFrame, 3, 0, 5, 0)
 
-            self.printBtn = ttk.Button(self, text="trigger print")
+            self.printBtn = ttk.Button(self, text="trigger print", command=self.togglePrint)
             grid(self.printBtn, 4, 0, 5, 0)
             self.printBtn["state"] = "disabled"
 
-            self.gotoBtn = ttk.Button(self, text="show drop on cam ") # move arm up first
+            self.gotoBtn = ttk.Button(self, text="show drop on cam") # move arm up first # TODO: make a function in driver that moves up, then moves stage
             grid(self.gotoBtn, 5, 0, 5, 0)
             self.gotoBtn["state"] = "disabled"
 
-            self.setPntBtn = ttk.Button(self, text="set location as 'drop focused on camera'")
+            self.setPntBtn = ttk.Button(self, text="save offset (line up drop on cam)", command=self.setPnt)
             grid(self.setPntBtn, 6, 0, 5, 0)
             self.setPntBtn["state"] = "disabled"
 
-            self.upBtn = ttk.Button(self, text="move arm up")
+            self.upBtn = ttk.Button(self, text="move arm up", command=self.armUp)
             grid(self.upBtn, 7, 0, 5, 0)
             self.upBtn["state"] = "disabled"
 
-            self.abortBtn = ttk.Button(self, text="abort process") # stops arm movement
+            self.abortBtn = ttk.Button(self, text="abort process", command=self.abort) # stops arm movement
             # only enables done button, which will have an implicit moveArmUp command called
             grid(self.abortBtn, 8, 0, 5, 0)
             self.abortBtn["state"] = "disabled"
 
-            self.doneBtn = ttk.Button(self, text="done") 
+            self.doneBtn = ttk.Button(self, text="done", command=self.done) 
             grid(self.doneBtn, 9, 0, 5, 0) 
             self.doneBtn["state"] = "disabled"
 
             calibButtons.append(self.startBtn)
+            self.printLoc = (None, None)
+            self.offset = (None, None)
 
             # some fake(?) offset values
 
         # this is a FSM
         def start(self):
-            self.startBtn["state"] = "disabled"
+            # TODO: should abort only be clickable during arm moves?
+            # TODO: if I add a button to save the offset, then I don't need the entire drop offset menu
+            #       since drop offset will also need move up / down
             self.abortBtn["state"] = "normal"
             self.toChipBtn["state"] = "normal"
             self.doneBtn["state"] = "normal"
+            for btn in self.calibButtons: btn["state"] = "disabled"
 
         def toChip(self):
-            self.toChip["state"] = "disabled"
+            self.toChipBtn["state"] = "disabled"
             # cb
             def cb():
                 self.upBtn["state"] = "normal"
                 self.printBtn["state"] = "normal"
+                self.eqPEnt["state"] = "normal"
+                self.eqPBtn["state"] = "normal"
 
-            pass
+            driver.movePrinterToChip(cb)
 
         def saveSetEqP(self):
             # also perform checks on save pressure here
             # TODO: new function in Pressure.py that lets you adjust equilibrium pressure rather than all three at once
             # should call set pressure after saving the new pressure
-            pass
+            pVal = self.eqPEnt.get()
+            try:
+                pVal = float(pVal)
+                if pVal < -20.0 or pVal > 20.0:
+                    # TODO: have a confirm button
+                    res:bool = messagebox.askokcancel(title="abnormal equilibrium pressure", message=f'You entered {pVal} for your equilibrium pressure, which is outside of the range [-20.0, 20.0]. High equilibrium pressures may cause unwanted behavior. Are you sure you want to use this value?')
+                    if not res: return
+                
+                # TODO: here is where we set equilibrium pressure, need to implement first
+
+            except ValueError:
+                res = messagebox.showerror(title="bad input", message="Please be sure you entered a valid pressure value")
 
         def togglePrint(self):
             # disable everything, print a drop, re-enable
             # also save where we printed ( for offset calculation )
-            pass
+            self.upBtn["state"] = "disabled"
+            self.eqPEnt["state"] = "disabled"
+            self.eqPBtn["state"] = "disabled"
+            self.doneBtn["state"] = "disabled"
+            self.setPntBtn["state"] = "disabled"
+            self.gotoBtn["state"] = "disabled"
+            self.abortBtn["state"] = "disabled"
+
+            self.printLoc = driver.getStageXY()
+
+            def cb():
+                self.upBtn["state"] = "normal"
+                self.eqPEnt["state"] = "normal"
+                self.eqPBtn["state"] = "normal"
+                self.doneBtn["state"] = "normal"
+                self.abortBtn["state"] = "normal"
+                if self.printLoc != (None, None): self.setPntBtn["state"] = "normal"
+                if self.offset != (None, None): self.gotoBtn["state"] = "normal"
+
+            driver.printDropNoMove(cb)
 
         def goto(self):
             # disabled until both print and setpoint have been pressed
             # has to be absolute move so we don't break anything
             # disables stuff while moving
+            # TODO: figure out how to do this, not gonna do it now
             pass
 
         def setPnt(self):
-            # saves position as 'drop focused on camera'
-            pass
+            loc = driver.getStageXY()
+            self.offset = (self.printLoc[0] - loc[0], self.printLoc[1] - loc[1])
+            driver.saveOffset(self.offset)
 
         def armUp(self):
             # moves up, cb disables all printing related buttons
-            pass
+            self.printBtn["state"] = "disabled"
+            self.gotoBtn["state"] = "disabled"
+            self.setPntBtn["state"] = "disabled"
+            self.upBtn["state"] = "disabled"
+            self.eqPBtn["state"] = "disabled"
+            self.eqPEnt["state"] = "disabled"
+            self.doneBtn["state"] = "disabled"
+
+            def cb():
+                self.doneBtn["state"] = "normal"
+                self.toChipBtn["state"] = "normal"
+
+            driver.moveArmToUp(cb)
 
         def abort(self):
             # call interrupt, only enable done
-            pass
+            def cb():
+                self.doneBtn["state"] = "normal"
+            
+            driver.interrupt(cb)
 
         def done(self):
-            pass
+            # cb(enable start, disable abort), done
+            # move arm up
+            self.doneBtn["state"] = "disabled"
+            self.upBtn["state"] = "disabled"
+            self.toChipBtn["state"] = "disabled"
+            self.printBtn["state"] = "disabled"
+            self.eqPBtn["state"] = "disabled"
+            self.eqPEnt["state"] = "disabled"
+            self.setPntBtn["state"] = "disabled"
+
+            def cb():
+                self.startBtn["state"] = "normal"
+                self.abortBtn["state"] = "disabled"
+                for btn in self.calibButtons: btn["state"] = "normal"
+
+            driver.moveArmToUp(cb)
 
     class OffSetCalibration(ttk.LabelFrame):
         # TODO: this will probably be deprecated by something else 
@@ -732,12 +796,12 @@ class CalibrationMenu(ttk.Frame):
             self.infoLabel.configure(text="done! Press start to recalibrate")
             self.abortBtn["state"] = "disabled"
             for btn in self.otherButtons: btn["state"] = "normal"
+            CALIB_DICT["printer offset"].configure(text=f"printer offset: {CALIBRATED}", background="#65d92b")
             print(driver.microscope.stage.printerOffset)
 
         def abort(self):
             """ wipe self.dropLoc, enable start, disable everything else, including abort"""
-            # TODO: also re-enable all other calibration buttons
-            self.printLoc = (None, None)
+            # self.printLoc = (None, None)
 
             self.startBtn["state"] = "normal"
             self.printBtn["state"] = "disabled"

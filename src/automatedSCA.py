@@ -155,8 +155,8 @@ class AutomatedSCA:
     def printSample(self, channelNum: int):
         """
         Applies a voltage to the printer head, printing a
-        single cell. Assumes the printer head
-        is already in the correct position
+        single cell. Also updates the stored contents of the chip. 
+        Assumes the printer head is already in the correct position.
 
         ASSUME that sample is perfect
 
@@ -228,7 +228,7 @@ class AutomatedSCA:
     def getAllChannelContents(self):
         return self.chip.getAllChannelContents()
 
-    def getStageXY(self):
+    def getStageXY(self) -> tuple[int, int]:
         return self.stage.getStageXY()
 
     # ======================================= #

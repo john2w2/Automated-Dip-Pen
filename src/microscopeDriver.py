@@ -386,7 +386,8 @@ class MicroscopeDriver:
     # some of these will also be called by high level functions for cleanup / setup
     def movePrinterIntoWell(self, cb):
         """Moves the printer head down to its 'in well' position
-            Assumes that the printer head is already lined up with the well
+            Assumes that the printer head is already lined up with the well;
+            does not move stage.
         """
         t: Thread = Thread(target=self.__movePrinterIntoWell, args=[cb])
         self.currentThread = t
@@ -394,6 +395,35 @@ class MicroscopeDriver:
 
     def __movePrinterIntoWell(self, cb):
         self.microscope.movePrinterIntoWell()
+        cb()
+    
+    def movePrinterToChip(self, cb):
+        """Moves the printer head down to its 'over chip' position.
+            Assumes that the printer head is already above the chip;
+            does not move stage.
+        """
+
+        t:Thread = Thread(target= self.__movePrinterToChip, args=[cb])
+        self.currentThread = t 
+        t.start()
+
+    def __movePrinterToChip(self, cb):
+        self.microscope.movePrinterDownToChannel()
+        cb()
+
+    def printDropNoMove(self, cb):
+        """ Applies a single voltage to the printer head, triggering jetserver. 
+        Does not move the arm anywhere, and doesn't move the stage.
+
+        :param cb: callback function that is called when function ends
+        :type cb: function
+        """
+        t: Thread = Thread(target=self.__printDropNoMove, args=[cb])
+        self.currentThread = t
+        t.start()
+
+    def __printDropNoMove(self, cb):
+        self.microscope.printer.printSingleDrop()
         cb()
 
     def moveArmToUp(self, cb):
