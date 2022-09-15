@@ -172,7 +172,7 @@ class MicroscopeDriver:
         :type outPressure: float
         """
 
-        self.microscope.savePressures(inPressure=inPressure, eqPressure=eqPressure, outPressure=outPressure)
+        self.microscope.calibPressureValues(inP=inPressure, eqP=eqPressure, outP=outPressure)
 
     def saveEthanolWells(self, wells: list[str]):
         """Saves which wells contain cleaning solution
@@ -911,5 +911,5 @@ class MicroscopeDriver:
         #TODO: have an interrupt here
         self.interrupt(cb)
         # print(self.interruptThread)
-        # self.interruptThread.join()
+        self.interruptThread.join()
         self.microscope.close()
