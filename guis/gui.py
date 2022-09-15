@@ -576,7 +576,7 @@ class CalibrationMenu(ttk.Frame):
             self.toChipBtn["state"] = "disabled"
 
             # TODO: this should be its own frame (maybe)
-            self.pressureFrame = ttk.LabelFrame(self, text="edit equilibrium pressure")
+            self.pressureFrame = ttk.LabelFrame(self, text="edit and set equilibrium pressure")
             for i in range(2): self.pressureFrame.columnconfigure(i, weight=1)
             self.eqPEnt = ttk.Entry(self.pressureFrame)
             grid(self.eqPEnt, 0, 0, 0, 0)
@@ -615,28 +615,51 @@ class CalibrationMenu(ttk.Frame):
 
             calibButtons.append(self.startBtn)
 
+            # some fake(?) offset values
+
+        # this is a FSM
         def start(self):
-            pass
+            self.startBtn["state"] = "disabled"
+            self.abortBtn["state"] = "normal"
+            self.toChipBtn["state"] = "normal"
+            self.doneBtn["state"] = "normal"
 
         def toChip(self):
+            self.toChip["state"] = "disabled"
+            # cb
+            def cb():
+                self.upBtn["state"] = "normal"
+                self.printBtn["state"] = "normal"
+
             pass
 
-        def saveEqP(self):
+        def saveSetEqP(self):
+            # also perform checks on save pressure here
+            # TODO: new function in Pressure.py that lets you adjust equilibrium pressure rather than all three at once
+            # should call set pressure after saving the new pressure
             pass
 
         def togglePrint(self):
+            # disable everything, print a drop, re-enable
+            # also save where we printed ( for offset calculation )
             pass
 
         def goto(self):
+            # disabled until both print and setpoint have been pressed
+            # has to be absolute move so we don't break anything
+            # disables stuff while moving
             pass
 
         def setPnt(self):
+            # saves position as 'drop focused on camera'
             pass
 
         def armUp(self):
+            # moves up, cb disables all printing related buttons
             pass
 
         def abort(self):
+            # call interrupt, only enable done
             pass
 
         def done(self):
