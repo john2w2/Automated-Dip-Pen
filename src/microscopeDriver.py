@@ -261,7 +261,7 @@ class MicroscopeDriver:
         self.microscope.movePrinterOverChannel(channelNum)
         if self.__checkInterrupt(cb):return
 
-        self.microscope.moveDownToChannel()
+        self.microscope.movePrinterDownToChannel()
         cb()
 
     def testGrabSample(self, wellID: str, cb):
@@ -291,7 +291,7 @@ class MicroscopeDriver:
         :type channelNum: int
         :raises ValueError: if nothing is held in printer head
         """
-        if self.microscope.currentSample == "nothing":
+        if self.microscope.currentSample == self.microscope.chip.CHAN_EMPTY:
             cb()
             raise ValueError("no sample held in printer")
 
@@ -312,7 +312,7 @@ class MicroscopeDriver:
         self.microscope.movePrinterOverChannel(channelNum)
         if self.__checkInterrupt(cb):return
 
-        self.microscope.moveDownToChannel()
+        self.microscope.movePrinterDownToChannel()
         if self.__checkInterrupt(cb):return
 
         self.microscope.printSample(channelNum)
@@ -343,7 +343,7 @@ class MicroscopeDriver:
         :raises ValueError: if channelNum isn't a valid channel
         :raises ValueError: if number of drops to print isn't in range [1,10]
         """
-        if self.microscope.currentSample == "nothing":
+        if self.microscope.currentSample == self.microscope.chip.CHAN_EMPTY:
             cb()
             raise ValueError("nothing held in printer head")
 
@@ -367,7 +367,7 @@ class MicroscopeDriver:
         # self.microscope.moveArmToUp()
         # self.microscope.movePrinterOverChannel(channelNum)
         # if self.__checkInterrupt(cb): return
-        # self.microscope.moveDownToChannel()
+        # self.microscope.movePrinterDownToChannel()
         # if self.__checkInterrupt(cb): return
 
         # for _ in range(drops):
@@ -539,7 +539,7 @@ class MicroscopeDriver:
         self.microscope.movePrinterOverChannel(channelNum)
         if self.__checkInterrupt(cb): return
 
-        self.microscope.moveDownToChannel()
+        self.microscope.movePrinterDownToChannel()
         if self.__checkInterrupt(cb): return
 
         self.microscope.printSample(channelNum)
@@ -655,7 +655,7 @@ class MicroscopeDriver:
         # additional logic to clean out the current sample if necessary
         def fakeCB(): x=3
         # TODO: if we're already holding sample from wellID should we still replace it?
-        if self.microscope.currentSample != "nothing":
+        if self.microscope.currentSample != self.microscope.chip.CHAN_EMPTY:
             self.__cleanOutHead(fakeCB)
 
         if self.__checkInterrupt(cb):return
@@ -663,10 +663,10 @@ class MicroscopeDriver:
         self.microscope.movePrinterOverWell(wellID)
         if self.__checkInterrupt(cb):return
 
-        self.microscope.moveHeadIntoWell()
+        self.microscope.movePrinterIntoWell()
         if self.__checkInterrupt(cb):return
 
-        self.microscope.suckInSample(wellID)
+        self.microscope.getSample(wellID)
         if self.__checkInterrupt(cb):return
 
         self.microscope.moveArmToUp()
@@ -699,7 +699,7 @@ class MicroscopeDriver:
         validChannels: bool = True
         for channel in channels:
             contents = self.microscope.chip.getChannelContent(channel)
-            if contents != "nothing":
+            if contents != self.microscope.chip.CHAN_EMPTY:
                 print(f"ERROR: channel {channel} already holds {contents}")
                 validChannels = False
 
@@ -744,7 +744,7 @@ class MicroscopeDriver:
         if self.__checkInterrupt(cb): return
 
         # move down to initial channel
-        self.microscope.moveDownToChannel()
+        self.microscope.movePrinterDownToChannel()
         if self.__checkInterrupt(cb): return
 
         # print to each specified channel
@@ -828,7 +828,7 @@ class MicroscopeDriver:
             # the above lines describe self.__printToMultipleChannels
         for wellID in wellIDs:
             # parse out next k empty channels
-            chans = [next(emptyIter) for i in range(k)]
+            chans = [next(emptyIter) for _ in range(k)]
             if self.__checkInterrupt(cb): return
 
             # now we can call __printToMultipleChannels with those channels

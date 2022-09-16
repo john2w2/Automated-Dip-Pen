@@ -321,9 +321,9 @@ class CalibrationMenu(ttk.Frame):
         # getSample.grid(row=0, column=1, rowspan=2, sticky='nsew', padx=5, pady=5)
         # grid(getSample, 0, 1, 5, 5)
 
-        self.offset = self.OffSetCalibration(self, self.buttons)
+        # self.offset = self.OffSetCalibration(self, self.buttons)
         # grid(self.offset, 4, 1, 5,5)
-        self.offset.grid(row=2, column=1, rowspan=2, sticky='nsew', padx=5, pady=5)
+        # self.offset.grid(row=2, column=1, rowspan=2, sticky='nsew', padx=5, pady=5)
 
         pressureCal = self.PressureCalibration(self, self.buttons)
         # grid(pressureCal, 5, 1, 5, 5)
@@ -581,13 +581,13 @@ class CalibrationMenu(ttk.Frame):
             grid(self.eqPBtn, 0, 1, 0, 0)
             self.eqPBtn["state"] = "disabled"
 
-            grid(self.pressureFrame, 3, 0, 5, 0)
+            grid(self.pressureFrame, 3, 0, 5, 5)
 
             self.printBtn = ttk.Button(self, text="trigger print", command=self.togglePrint)
             grid(self.printBtn, 4, 0, 5, 0)
             self.printBtn["state"] = "disabled"
 
-            self.gotoBtn = ttk.Button(self, text="show drop on cam") # move arm up first # TODO: make a function in driver that moves up, then moves stage
+            self.gotoBtn = ttk.Button(self, text="show drop on cam") # move arm up first # TODO: make a function in driver that moves up, then moves stage relatively by the negation of the offset
             grid(self.gotoBtn, 5, 0, 5, 0)
             self.gotoBtn["state"] = "disabled"
 

@@ -160,7 +160,8 @@ class AutomatedSCA:
 
         ASSUME that sample is perfect
 
-        :param channelNum: channel printer head is currently over
+        :param channelNum: channel printer head is currently over, only 
+        used to update stored contents of chip
         :type channelNum: int
         """
 
@@ -173,7 +174,8 @@ class AutomatedSCA:
         is submerged in, storing that sample as the
         microscope's current sample
         Assumes that the printer head is submerged in wellID
-        :param wellID: the sample the head is submerged in
+        :param wellID: the sample the head is submerged in. Only used to 
+        update the contents of the printer head, does NOT move to wellID
         :type wellID: string
         """
         self.printer.getSample()
