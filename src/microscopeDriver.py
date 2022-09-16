@@ -273,7 +273,7 @@ class MicroscopeDriver:
         self.grabSample(wellID, cb)
 
 
-    def testPrintDrop(self, channelNum: int, cb):
+    def testPrintDropToChan(self, channelNum: int, cb):
         """
         Prints a single drop to the specified channel.
         - throws exception if nothing in printer head
@@ -301,11 +301,11 @@ class MicroscopeDriver:
 
         channelNum = int(channelNum)
 
-        t: Thread = Thread(target=self.__testPrintDrop, args=[channelNum, cb])
+        t: Thread = Thread(target=self.__testPrintDropToChannel, args=[channelNum, cb])
         self.currentThread = t
         t.start()
 
-    def __testPrintDrop(self, channelNum: int, cb):
+    def __testPrintDropToChannel(self, channelNum: int, cb):
         self.microscope.moveArmToUp()
         if self.__checkInterrupt(cb):return
 
@@ -322,6 +322,10 @@ class MicroscopeDriver:
         cb()
 
     def testPrintMultipleDrops(self, channelNum: int, drops: int, cb):
+        # TODO: maybe remove channel requirement and make it drop in place
+        # requires: printer head is above the waste slide
+            # move down, print drops in a row, move up, show first drop on cam 
+            # show first drop = firstDropLoc - offset (I'm pretty sure)
         """Tests printing multiple drops of currently held
         sample to a single channel.
         Used to test
@@ -363,6 +367,11 @@ class MicroscopeDriver:
         t.start()
 
     def __testPrintMultipleDrops(self, channelNum: int, drops: int, cb):
+        # TODO: maybe remove channel requirement and make it drop in place
+        # requires: printer head is above the waste slide
+            # move down, print drops in a row, move up, show first drop on cam 
+            # show first drop = firstDropLoc - offset (I'm pretty sure)
+
         # TODO: have a stage command that can move horizontally slightly
         # self.microscope.moveArmToUp()
         # self.microscope.movePrinterOverChannel(channelNum)
@@ -424,6 +433,32 @@ class MicroscopeDriver:
 
     def __printDropNoMove(self, cb):
         self.microscope.printer.printSingleDrop()
+        cb()
+
+    def movePrinterOverChannel(self, channelNum:int, cb):
+        """Moves the printer head over channelNum.
+        Does not move the arm down to the channel
+
+        :param channelNum: the channel to move over
+        :type channelNum: int
+        :param cb: _description_
+        :type cb: function
+        """
+
+        if not self.checkChannelsValid([channelNum]):
+            raise ValueError(f"{channelNum} not a valid channel")
+
+        t:Thread = Thread(target=self.__movePrinterOverChannel, args=[channelNum, cb])
+        self.currentThread = t
+        t.start()
+
+    def __movePrinterOverChannel(self, channelNum, cb):
+        self.microscope.moveArmToUp()
+        if self.__checkInterrupt(cb): return
+
+        self.microscope.movePrinterOverChannel(channelNum=channelNum)
+        if self.__checkInterrupt(cb): return
+
         cb()
 
     def moveArmToUp(self, cb):
@@ -939,7 +974,12 @@ class MicroscopeDriver:
         interrupted
         """
         #TODO: have an interrupt here
+        print("driver closing")
         self.interrupt(cb)
+        print("\tinterrupt command issued")
         # print(self.interruptThread)
         self.interruptThread.join()
+        print("\tinterrupt thread joined")
         self.microscope.close()
+        print("\tmicroscope closed")
+

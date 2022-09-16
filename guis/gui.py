@@ -340,7 +340,6 @@ class CalibrationMenu(ttk.Frame):
 
         def cb():
             for btn in self.buttons: btn["state"] = "normal"
-            self.offset.getStartBtn()["state"] = "normal"
             CALIB_DICT["arm"].config(text=f"arm: {CALIBRATED}", background="#65d92b")
             self.buttons.append(self.calibArmBtn)
             for item in self.buttons: item["state"] = "normal"
@@ -686,7 +685,7 @@ class CalibrationMenu(ttk.Frame):
         def setPnt(self):
             loc = driver.getStageXY()
             self.offset = (self.printLoc[0] - loc[0], self.printLoc[1] - loc[1])
-            driver.saveOffset(self.offset)
+            driver.saveOffset(self.printLoc[0] - loc[0], self.printLoc[1] - loc[1])
 
         def armUp(self):
             # moves up, cb disables all printing related buttons
@@ -818,14 +817,19 @@ class SanityMenu(ttk.Frame):
         self.columnconfigure(0, weight=1)
         self.sanity_buttons = []
 
+        # TODO: interrupt button, print drop to channel, print row of drops in place
+
         overWell = self.OverWell(self, self.sanity_buttons)
         grid(overWell, 0,0,0,0)
 
         overChannel = self.OverChannel(self, self.sanity_buttons)
         grid(overChannel, 1,0,0,0)
 
+        showChannel = self.ChanOnCam(self, self.sanity_buttons)
+        grid(showChannel, 2,0,0,0)
+
         grabSample = self.GrabSample(self, self.sanity_buttons)
-        grid(grabSample,2,0,0,0)
+        grid(grabSample,3,0,0,0)
         
     class OverWell(ttk.LabelFrame):
         def __init__(self, parent, buttons):
@@ -859,13 +863,52 @@ class SanityMenu(ttk.Frame):
             chanLab = ttk.Label(self, text="Select channel: (ex: 22)")
             grid(chanLab, 0,0,0,0)
 
-            chanEnt = ttk.Entry(self)
-            grid(chanEnt,0,1,0,0)
+            self.chanEnt = ttk.Entry(self)
+            grid(self.chanEnt,0,1,0,0)
 
-            goBtn = ttk.Button(self, text="go above channel")
-            goBtn.grid(row=1,column=0, columnspan=2)
+            goBtn = ttk.Button(self, text="go above channel",command=self.aboveChan)
+            goBtn.grid(row=1,column=0, columnspan=2, sticky='nsew')
 
             for child in self.winfo_children(): self.sanity_buttons.append(child)
+        
+        def aboveChan(self):
+            # TODO: cb
+            def cb(): x = 3
+            chan = self.chanEnt.get()
+            try:
+                chan = int(chan)
+                driver.movePrinterOverChannel(chan, cb)
+            except ValueError as e:
+                print(e)
+                messagebox.showerror(title="Invalid Channel", message=f"{chan} is not a valid channel")
+
+    class ChanOnCam(ttk.Labelframe):
+        def __init__(self, parent, buttons):
+            ttk.LabelFrame.__init__(self, parent, text="Show channel on camera")
+            for i in range(2): 
+                self.rowconfigure(i, weight=1)
+                self.columnconfigure(i, weight=1)
+
+            self.sanity_buttons = buttons
+            chanLab = ttk.Label(self, text="Select channel: (ex: 22)")
+            grid(chanLab, 0,0,0,0)
+
+            self.chanEnt = ttk.Entry(self)
+            grid(self.chanEnt,0,1,0,0)
+
+            showBtn = ttk.Button(self, text="show channel", command=self.showChan)
+            showBtn.grid(row=1,column=0, columnspan=2, sticky='nsew')
+
+        def showChan(self):
+            # TODO: make a good callback
+            def cb(): x=3
+
+            chan = self.chanEnt.get()
+            try:
+                chan = int(chan)
+                driver.focusChannel(chan, cb)
+            except:
+                messagebox.showerror(title="Invalid Channel", message=f"{chan} is not a valid channel")
 
     class GrabSample(ttk.LabelFrame):
         def __init__(self, parent, buttons):
@@ -990,8 +1033,6 @@ class FocusChannel(ttk.LabelFrame):
         except ValueError:
             messagebox.showwarning(title="invalid channel", message=f"please enter a channel between 1 and {driver.microscope.chip.numChan}")
     
-    # TODO: call focus channel in driver
-        
 
 root.grid_columnconfigure(0, weight=1)
 root.grid_columnconfigure(1, weight=1)
