@@ -7,6 +7,7 @@ from OB1 import OB1
 class Pressure:
   def __init__(self):
     self.pcontroller = OB1(calibrate=False)
+    # TODO: load these from a file
     self.inPressure = -80
     self.eqPressure = 0
     self.outPressure = 80

@@ -68,4 +68,6 @@ class CamWidget(tk.Frame):
             print("camera stuff is donezo")
         except Exception as err:
             print(err)
-            messagebox.showwarning(title="camera error", message="camera failed to load, please check that it's on and the config file")
+            # TODO: this pops up when camera is closed while feed is live
+            # actually, it shouldn't be an error since the camera is gonna be instantiated higher up
+            messagebox.showwarning(title="camera error", message="camera failed to load, please check that it's on and that the config file exists")

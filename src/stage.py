@@ -296,12 +296,49 @@ class Stage:
         # wait until we get back "R" if movement command
         # See PRIOR manual for details if needed
         if isMoveCmd:
-            res = self.ser.readline()
-            while (not (b'R' in res)):
-                res = self.ser.readline()
-            return res.decode()
+            # res = self.ser.readline()
+            # while (not (b'R' in res)):
+            #     res = self.ser.readline()
+            # return res.decode()
+            while True:
+                if not self.isMoving():
+                    return
         else:
             return self.ser.readline().decode()
+
+    def isMoving(self) -> bool:
+        """
+        Returns true if the stage is moving; otherwise return false
+        Used by functions that cause the stage to move so that they can
+        successfully block other commands until the movement stops.
+        """
+
+        return (self.checkXMoving() or self.checkYMoving()
+                or self.checkXMoving() or self.checkYMoving())
+
+    def checkXMoving(self) -> bool:
+        """
+        Returns whether or not the stage is moving along the x axis
+        NOTE: sometimes this goofs
+        """
+        cmd = "$,X"
+        val = self.writeRead(cmd, isMoveCmd=False)
+        try:
+            return bool(int(val))
+        except ValueError:
+            pass
+
+    def checkYMoving(self) -> bool:
+        """
+        Returns whether or not the stage is moving along the y axis
+        NOTE: sometimes this goofs
+        """
+        cmd = "$,Y"
+        val = self.writeRead(cmd, isMoveCmd=False)
+        try:
+            return bool(int(val))
+        except ValueError:
+            pass
 
     def close(self):
         """Close serial connection
@@ -452,7 +489,7 @@ class Stage:
 
         with open(channelPath, 'w+') as f:
             x = self.getStageX()
-            y = self.getStageY()  # TODO: Y
+            y = self.getStageY()
 
             self.firstChannelCamPos = (x, y)
 

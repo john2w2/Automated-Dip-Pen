@@ -1,3 +1,4 @@
+from multiprocessing.sharedctypes import Value
 from threading import Thread
 import string
 from time import sleep
@@ -351,39 +352,32 @@ class MicroscopeDriver:
             cb()
             raise ValueError("nothing held in printer head")
 
-        if not self.checkChannelsValid([channelNum]):
-            cb()
-            raise ValueError("channel number not valid")
-
-        channelNum = int(channelNum)
-
         if drops < 1 or drops > 10:
             cb()
             raise ValueError("number of drops must be in range [1,10]")
 
         t: Thread = Thread(target=self.__testPrintMultipleDrops, args=[
-                           channelNum, drops, cb])
+                           drops, cb])
         self.currentThread = t
         t.start()
 
-    def __testPrintMultipleDrops(self, channelNum: int, drops: int, cb):
+    def __testPrintMultipleDrops(self, drops: int, cb):
         # TODO: maybe remove channel requirement and make it drop in place
         # requires: printer head is above the waste slide
             # move down, print drops in a row, move up, show first drop on cam 
             # show first drop = firstDropLoc - offset (I'm pretty sure)
 
         # TODO: have a stage command that can move horizontally slightly
-        # self.microscope.moveArmToUp()
-        # self.microscope.movePrinterOverChannel(channelNum)
+        self.microscope.moveArmToUp()
         # if self.__checkInterrupt(cb): return
-        # self.microscope.movePrinterDownToChannel()
-        # if self.__checkInterrupt(cb): return
+        self.microscope.movePrinterDownToChannel()
+        if self.__checkInterrupt(cb): return
 
-        # for _ in range(drops):
-        # if self.__checkInterrupt(cb): return
-        #   printSample()
-        # if self.__checkInterrupt(cb): return
-        # self.microscope.moveStageByX(100) # something like this, move 100 um to the right
+        for _ in range(drops):
+            if self.__checkInterrupt(cb): return
+            self.microscope.printSample()
+        if self.__checkInterrupt(cb): return
+        self.microscope.stage.moveXInUM(150) # something like this, move 100 um to the right
 
         cb()
         #TODO: implement relative stage x move
@@ -393,6 +387,29 @@ class MicroscopeDriver:
     # these low level functions are intended to provide the user with a small amount
     # of control to continue doing sanity checks, or to do small stuff (like focusing a channel)
     # some of these will also be called by high level functions for cleanup / setup
+    def movePrinterOverWell(self, wellID: str, cb):
+        """
+        Moves the printer over the specified well. 
+        
+        :param wellID: The well to move above
+        :type wellID: str
+        :param cb: callback function that is called when thread finishes
+        :type cb: function        
+        """
+        if not self.checkWellsValid([wellID]):
+            raise ValueError(f"{wellID} is not a valid well")
+
+        t: Thread = Thread(target=self.__movePrinterOverWell, args=[wellID, cb])
+        self.currentThread = t
+        t.start()
+        
+    def __movePrinterOverWell(self, wellID: str, cb):
+        self.microscope.moveArmToUp()
+        if self.__checkInterrupt(cb): return
+
+        self.microscope.movePrinterOverWell(wellID=wellID)
+        cb()
+
     def movePrinterIntoWell(self, cb):
         """Moves the printer head down to its 'in well' position
             Assumes that the printer head is already lined up with the well;

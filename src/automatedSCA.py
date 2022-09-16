@@ -104,7 +104,6 @@ class AutomatedSCA:
     def movePrinterOverWell(self, wellID: str):
         """
         Moves the printer head above the specified well, does NOT move down into well
-        Does nothing if z-axis arm isn't calibrated
 
         :param wellID: ID of well to move over
         :type wellID: str
