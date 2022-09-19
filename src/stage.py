@@ -32,7 +32,6 @@ class Stage:
     def __init__(self, plate: Plate, chip: Chip, priorController: serial.Serial, stepSize=0.04):
         """Constructor
         """
-
         self.ser = priorController
         self.plate = plate
         self.chip = chip
@@ -42,8 +41,8 @@ class Stage:
         # self.firstChannelCamPos = (-2016268, -1409635)
         # load previously saved offset
 
-        # TODO: bring back
-        # self.loadPrevOffset()
+        self.loadPrevOffset()
+        self.loadPrevFirstChan()
 
         self.stepSize = stepSize
 
@@ -80,6 +79,7 @@ class Stage:
         :type offsetY: int
         """
         self.printerOffset = (offsetX, offsetY)
+        self.saveNewOffset(offsetX, offsetY)
 
     def calibOrigin(self):
         """Define origin for stage
@@ -111,6 +111,7 @@ class Stage:
         """
         stagePos = self.getStageXY()  # Stage coordinates for location of first channel under camera
         self.firstChannelCamPos = tuple(stagePos)
+        self.saveNewFirstChannel(stagePos=stagePos)
         # self.firstChannelPos = (
         #     stagePos[0]+self.printerOffset[0], stagePos[1]+self.printerOffset[1])
 
@@ -484,7 +485,7 @@ class Stage:
         channelPath = os.path.join(calibPath, 'firstChannel.txt')
         self.__makeDefFirstChannelFile(pathToData=channelPath)
 
-    def saveNewFirstChannel(self):
+    def saveNewFirstChannel(self, stagePos: tuple[int, int]):
         # TODO: this should replace setFirstChannel
         """
         Grabs the position of the stage and stores it as the
@@ -499,10 +500,12 @@ class Stage:
             os.makedirs(calibPath)
 
         with open(channelPath, 'w+') as f:
-            x = self.getStageX()
-            y = self.getStageY()
+            # x = self.getStageX()
+            # y = self.getStageY()
+            x = stagePos[0]
+            y = stagePos[1]
 
-            self.firstChannelCamPos = (x, y)
+            # self.firstChannelCamPos = tuple((x, y))
 
             f.write(f"{str(x)}\n")
             f.write(str(y))

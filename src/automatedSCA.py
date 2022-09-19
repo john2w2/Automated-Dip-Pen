@@ -215,6 +215,7 @@ class AutomatedSCA:
         """
         # self.moveToSafePositions()
         self.arm.close()
+        self.printer.close()
         self.priorController.close()
         # self.pressure.close()
 

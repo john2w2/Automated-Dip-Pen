@@ -135,7 +135,8 @@ class WellSelect(tk.Frame):
         for label in self.labels:
             if label.cget('bg') == "#80a5e0":
                 out.append(label.cget("text"))
-        out = sorted(out, key=lambda val: "ABCDEFGH".index(val[0]) * 12 + int(val[1:])  )
+        # TODO: make this sort better
+        # out = sorted(out, key=lambda val: "ABCDEFGHIJKLMNOP".index(val[0]) * 12 + int(val[1:])  )
         return out
 
 

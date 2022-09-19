@@ -79,14 +79,10 @@ class MicroscopeDriver:
         cb()
 
     def calibrateStage(self):
-        # NOTE: if you want this to be threaded again, add the cb parameter
         """
         Starts a thread that resets the stage's internal positioning
-        :param cb: Callback function used to reenable buttons on UI
-        :type cb: function
         """
         self.microscope.resetStageOrigin()
-
 
     def recalibrateOB1(self, cb):
         """
@@ -100,24 +96,6 @@ class MicroscopeDriver:
         pass
         # raise NotImplementedError("pressure system not implemented yet")
 
-    # # deprecated
-    # def __calibrateStage(self, cb):
-    #     # NOTE: old method that previously called SIS
-    #     # we are no longer using this
-    #     """
-    #     Resets the internal positioning of the stage.
-    #     This involves the stage moving until it hits
-    #     its bottom and right limit switches
-
-    #     :param cb: Callback function used to reenable buttons on UI
-    #     :type cb: function
-    #     """
-    #     self.microscope.moveArmToUp()
-    #     if self.__checkInterrupt(cb): return
-    #     self.microscope.resetStageOrigin()
-    #     cb()
-
-    # NOTE: these saving functions don't need to be threaded
     def saveFirstChannelCamPos(self):
         """Saves the current stage position as the 
         position such that the first channel is focused
@@ -393,7 +371,7 @@ class MicroscopeDriver:
     # some of these will also be called by high level functions for cleanup / setup
 
 
-    def moveDropToCam(self, dropX: int, dropY: int, cb):
+    def moveDropToCam(self, dropLoc: tuple[int, int], cb):
         """
         Moves the stage by subtracting offset from the current position.
         Intended to be used to show a drop on the camera.
@@ -403,10 +381,18 @@ class MicroscopeDriver:
         :param dropY: y location of drop in steps
         :type dropY: int
         """
-        # start thread
 
-    def __moveDropToCam(self, dropX, dropY, cb):
-        self.microscope.stage.move
+        # start thread
+        t: Thread = Thread(target=self.__moveDropToCam, args=[dropLoc, cb])
+        self.currentThread = t
+        t.start()
+
+    def __moveDropToCam(self, dropLoc: tuple[int, int], cb):
+        # self.microscope.moveArmToUp()
+        # if self.__checkInterrupt(cb):return
+
+        self.microscope.stage.moveDropToCam(dropLoc=dropLoc)
+        cb()
 
     def movePrinterOverWell(self, wellID: str, cb):
         """
@@ -591,9 +577,10 @@ class MicroscopeDriver:
             cb()
             raise ValueError(f"{wellID} is not a valid well ID")
 
-        if not (wellID in self.sampleWells):
-            cb()
-            raise ValueError(f"{wellID} doesn't have any sample in it")
+        # TODO: uncomment if we want this feature
+        # if not (wellID in self.sampleWells):
+        #     cb()
+        #     raise ValueError(f"{wellID} doesn't have any sample in it")
 
         t: Thread = Thread(target=self.__printSampleToChannel, args=[wellID, channelNum, cb])
         self.currentThread = t
@@ -631,7 +618,7 @@ class MicroscopeDriver:
         # TODO: arm needs another position (safeup)
         # TODO: this is also blocking, will want to thread it (maybe)
         self.microscope.moveArmToUp()
-        self.microscope.movePrinterOverWell("A1")
+        # self.microscope.movePrinterOverWell("A1")
 
     def interrupt(self, cb):
         # TODO: right now this is blocking, will pause GUI
@@ -713,9 +700,10 @@ class MicroscopeDriver:
             cb()
             raise ValueError("well ID not valid")
 
-        if not (wellID in self.sampleWells):
-            cb()
-            raise ValueError(f"{wellID} not in list of wells with sample")
+        # TODO: uncomment if we want this feature
+        # if not (wellID in self.sampleWells):
+        #     cb()
+        #     raise ValueError(f"{wellID} not in list of wells with sample")
 
         t = Thread(target=self.__grabSample, args=[wellID, cb])
         self.currentThread = t
@@ -785,10 +773,12 @@ class MicroscopeDriver:
             cb()
             raise ValueError(f"{wellID} isn't a valid wellID")
 
+
         # check if wellID has some sample in it
-        if not wellID in self.sampleWells:
-            cb()
-            raise ValueError(f"{wellID} doesn't contain anything")
+        #TODO: uncomment if we want to keep this feature
+        # if not wellID in self.sampleWells:
+            # cb()
+            # raise ValueError(f"{wellID} doesn't contain anything")
 
         # all checks good
         t: Thread = Thread(target=self.__printToMultipleChannels, args=[wellID, channels, cb])
@@ -866,14 +856,15 @@ class MicroscopeDriver:
             cb()
             raise ValueError("wellIDs not valid")
 
-        # whether or not each wellID has some sample in it
-        wellIDsExist = True
-        for wellID in wellIDs:
-            if wellID not in self.sampleWells: wellIDsExist = False
+        # TODO: uncomment if we want to keep this feature
+        # # whether or not each wellID has some sample in it
+        # wellIDsExist = True
+        # for wellID in wellIDs:
+        #     if wellID not in self.sampleWells: wellIDsExist = False
 
-        if not wellIDsExist:
-            cb()
-            raise ValueError("not all wellIDs have sample in them")
+        # if not wellIDsExist:
+        #     cb()
+        #     raise ValueError("not all wellIDs have sample in them")
 
         if len(self.microscope.getEmptyChannels()) < len(wellIDs) * k:
             cb()

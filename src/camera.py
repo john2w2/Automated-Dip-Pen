@@ -16,11 +16,11 @@ class Camera:
         self.rMax = None
 
     # return ndarray
-    def getImage(self):
+    def getImage(self, resizeImg=True, contrast=True):
         self.mmc.snapImage()
         img = self.mmc.getImage()
-        img = self.contrastImage(img)
-        img = (resize(img, (401, 601), preserve_range=True))
+        if contrast: img = self.contrastImage(img)
+        if resizeImg: img = (resize(img, (401, 601), preserve_range=True))
         return img
 
     def contrastImage(self, img):

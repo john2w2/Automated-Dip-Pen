@@ -1,10 +1,7 @@
 from calendar import setfirstweekday
-from email import message
 import tkinter as tk
 import sys
 sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
-
-import serial
 
 from tkinter import ttk
 from tkinter import messagebox
@@ -26,6 +23,7 @@ NOT_CALIBRATED = "not calibrated"
 LOADED = "loaded from previous run"
 
 interruptBtn: ttk.Button = None # global reference to interrupt button
+moveToSafeBtn: ttk.Button = None # global reference to move to safe button
 # driver: MicroscopeDriver = None # global reference to driver
 
 
@@ -54,15 +52,21 @@ class HighLevel(ttk.LabelFrame):
         startupButton = ttk.Button(self, text="open startup menu", command=self.openStartup)
         grid(startupButton, 0, 0, 5, 5)
 
-        interruptBtn = ttk.Button(self, text="INTERRUPT")
+        global interruptBtn
+        interruptBtn = ttk.Button(self, text="INTERRUPT", command=self.interrupt)
         grid(interruptBtn, 1, 0, 5, 5)
         interruptBtn["state"] = "disabled"
 
+        global moveToSafeBtn
+        moveToSafeBtn = ttk.Button(self, text="move arm to a safe position", command=self.moveToSafe)
+        grid(moveToSafeBtn, 2, 0, 5, 5, sticky='ew')
+        moveToSafeBtn["state"] = "disabled"
+
         self.singleToMultiple = SingleToMultiple(self)
-        grid(self.singleToMultiple, 2, 0, 5, 5, sticky='ew')
+        grid(self.singleToMultiple, 3, 0, 5, 5, sticky='ew')
 
         self.toK = PrintEachToK(self)
-        grid(self.toK, 3, 0, 5, 5, sticky='ew')
+        grid(self.toK, 4, 0, 5, 5, sticky='ew')
 
     def openStartup(self):
         def on_closing():
@@ -84,7 +88,14 @@ class HighLevel(ttk.LabelFrame):
     def interrupt(self):
         """ sends an interrupt command to the microscope driver"""
         # TODO: call driver interrupt here
-        pass
+        def cb():
+            moveToSafeBtn["state"] = "normal"
+
+        driver.interrupt(cb)
+
+    def moveToSafe(self):
+        moveToSafeBtn["state"] = "disabled"
+        driver.resetToSafeState()
 
     class StartupMenu(ttk.Frame):
         # TODO: make this a pop-out window
@@ -211,6 +222,8 @@ class PrintEachToK(ttk.Labelframe):
         for i in range(4): self.rowconfigure(i, weight=1)
         self.columnconfigure(0, weight=1)
 
+        self.wellEnt = []
+
         self.wellSelectOpen = False
 
         self.openWellsBtn = ttk.Button(self, text="open well select menu", cursor="hand2", command=self.openWellSelectMenu)
@@ -235,18 +248,40 @@ class PrintEachToK(ttk.Labelframe):
 
     def openWellSelectMenu(self):
         def on_closing():
-                wellSelectMenu.destroy()
+                self.wellSelectMenu.destroy()
                 self.wellSelectOpen = False
 
         if not self.wellSelectOpen:
-            wellSelectMenu = tk.Toplevel(root)
-            wellSelectMenu.title("Well Select Menu")
+            self.wellSelectMenu = tk.Toplevel(root)
+            self.wellSelectMenu.title("Well Select Menu")
             # NOTE: WellSelect is an imported class
-            grid(WellSelect(wellSelectMenu), 0,0,0,0)
-            # TODO: this also needs buttons to save or cancel selection
-            # TODO: wellselect save button should close window, put wells in array using WellSelect.getSelected
-            wellSelectMenu.protocol("WM_DELETE_WINDOW", on_closing)
+            self.selectWidget = WellSelect(self.wellSelectMenu)
+            grid(self.selectWidget, 0,0,0,0)
+            self.selectWidget.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
+
+            saveBtn = ttk.Button(self.wellSelectMenu, text="save wells", command=self.saveWells)
+            grid(saveBtn, 1, 0, 5, 5)
+
+            cancelBtn = ttk.Button(self.wellSelectMenu, text="cancel", command=on_closing)
+            grid(cancelBtn, 1, 1, 5, 5)
+            
+            self.wellSelectMenu.protocol("WM_DELETE_WINDOW", on_closing)
             self.wellSelectOpen = True
+
+    def saveWells(self):
+        selected = self.selectWidget.getSelected()
+        self.wellEnt = selected
+        enIter = iter(self.wellEnt)
+        wrapped = ""
+        for i in range(len(self.wellEnt)):
+            if i % 10 == 9: wrapped += '\n'
+            wrapped += next(enIter) + ' '
+        self.selectedWellsList.config(text=f"selected wells: {wrapped}")
+
+    def printToK(self):
+        # TODO: implement this
+        # get well entries
+        pass
 
 class CalibrationFrame(ttk.LabelFrame):
     def __init__(self, parent):
@@ -338,7 +373,8 @@ class CalibrationMenu(ttk.Frame):
 
         for btn in self.buttons: btn["state"] = "disabled"
         self.calibArmBtn["state"] = "disabled"
-        # self.offset.getStartBtn()["state"] = "disabled"
+        # can't interrupt this movement unfortunately
+
 
         def cb():
             for btn in self.buttons: btn["state"] = "normal"
@@ -346,24 +382,9 @@ class CalibrationMenu(ttk.Frame):
             self.buttons.append(self.calibArmBtn)
             STARTUP_DISABLED_BUTTONS.extend(ARM_ENABLES)
             for item in self.buttons: item["state"] = "normal"
+            # moveToSafeBtn["state"] = "normal"
 
         driver.calibrateZArm(cb)
-
-    def recalibratePressureSystem(self):
-        """ recalibrates the pressure sytem (make sure you have caps on)"""
-        for btn in self.buttons: btn["state"] = "disabled"
-        self.offset.getStartBtn()["state"] = "disabled"
-
-        def cb():
-            for btn in self.buttons: btn["state"] = "normal"
-            self.offset.getStartBtn()["state"] = "normal"
-
-        def fakeThread(cb): sleep(1); cb()
-
-        # driver.recalibratePressure()
-        # mimic calling driver
-        t=Thread(target=fakeThread, args=[cb])
-        t.start()
 
     class StageCalibration(ttk.LabelFrame):
         def __init__(self, parent, calibButtons):
@@ -439,9 +460,11 @@ class CalibrationMenu(ttk.Frame):
                 # well, for now it's ok to disable / re-enable everything
                 # re-enable other calibration buttons
                 for item in self.calibButtons: item["state"] = "normal"
+                # moveToSafeBtn["state"] = "normal"
                 
             for item in self.calibButtons: item["state"] = "disabled"
-            
+            # moveToSafeBtn["state"] = "disabled"
+
             driver.recalibrateOB1(cb)
 
         def savePressures(self):
@@ -498,11 +521,14 @@ class CalibrationMenu(ttk.Frame):
             self.startBtn["state"] = "disabled"
             self.abortBtn["state"] = "normal"
             for item in self.calibButtons: item["state"] = "disabled"
+            interruptBtn["state"] = "normal"
+            # moveToSafeBtn["state"] = "disabled"
 
             def cb():
                 self.moveOverWellBtn["state"] = "normal"
                 self.instructions.configure(text="Move printer head above a well containing solution")
-
+                interruptBtn["state"] = "disabled"
+                # moveToSafeBtn["state"] = "normal"
 
             driver.moveArmToUp(cb)
             
@@ -513,29 +539,39 @@ class CalibrationMenu(ttk.Frame):
 
         def moveIntoWell(self):
             self.intoWellBtn["state"] = "disabled"
+            interruptBtn["state"] = "normal"
+            # moveToSafeBtn["state"] = "disabled"
             #cb
             def cb():
                 self.getSampleBtn["state"] = "normal"
                 print("sample button normal")
                 self.instructions.configure(text="press 'get sample'")
+                interruptBtn["state"] = "disabled"
+                # moveToSafeBtn["state"] = "normal"
 
             driver.movePrinterIntoWell(cb)  
 
         def getSample(self):
             self.getSampleBtn["state"] = "disabled"
+            # moveToSafeBtn["state"] = "disabled"
             def cb():
                 self.moveUpBtn["state"] = "normal"
                 self.instructions.configure(text="press 'move arm up'")
+                # moveToSafeBtn["state"] = "normal"
 
             driver.grabSampleNoMove(cb)
 
         def moveUp(self):
             self.moveUpBtn["state"] = "disabled"
+            interruptBtn["state"] = "normal"
+            # moveToSafeBtn["state"] = "disabled"
             def cb():
                 self.instructions.configure(text="There should now be a sample in the printer head.\nPress start to redo")
                 self.abortBtn["state"] = "disabled"
                 self.startBtn["state"] = "normal"
                 for item in self.calibButtons: item["state"] = "normal"
+                interruptBtn["state"] = "disabled"
+                # moveToSafeBtn["state"] = "normal"
 
             driver.moveArmToUp(cb)
 
@@ -558,10 +594,6 @@ class CalibrationMenu(ttk.Frame):
             self.columnconfigure(0, weight=1)
             self.calibButtons = calibButtons
 
-            # what is the process here?
-            #   start, edit equilibrium pressure, print, go to, set point, done (re-enable buttons)
-            # oh, also down to chip, then up again buttons
-            # just Kyler's menu pretty much
             self.instructions = ttk.Label(self, text="TBD, just a static description of each button")
             grid(self.instructions, 0, 0, 5, 0)
 
@@ -589,7 +621,7 @@ class CalibrationMenu(ttk.Frame):
             grid(self.printBtn, 4, 0, 5, 0)
             self.printBtn["state"] = "disabled"
 
-            self.gotoBtn = ttk.Button(self, text="show drop on cam") # move arm up first # TODO: make a function in driver that moves up, then moves stage relatively by the negation of the offset
+            self.gotoBtn = ttk.Button(self, text="show drop on cam", command=self.goto) # move arm up first # TODO: make a function in driver that moves up, then moves stage relatively by the negation of the offset
             grid(self.gotoBtn, 5, 0, 5, 0)
             self.gotoBtn["state"] = "disabled"
 
@@ -628,12 +660,16 @@ class CalibrationMenu(ttk.Frame):
 
         def toChip(self):
             self.toChipBtn["state"] = "disabled"
+            interruptBtn["state"] = "normal"
+            # moveToSafeBtn["state"] = "disabled"
             # cb
             def cb():
                 self.upBtn["state"] = "normal"
                 self.printBtn["state"] = "normal"
                 self.eqPEnt["state"] = "normal"
                 self.eqPBtn["state"] = "normal"
+                interruptBtn["state"] = "disabled"
+                # moveToSafeBtn["state"] = "normal"
 
             driver.movePrinterToChip(cb)
 
@@ -675,16 +711,33 @@ class CalibrationMenu(ttk.Frame):
                 self.doneBtn["state"] = "normal"
                 self.abortBtn["state"] = "normal"
                 if self.printLoc != (None, None): self.setPntBtn["state"] = "normal"
-                if self.offset != (None, None): self.gotoBtn["state"] = "normal"
+                # if self.offset != (None, None): self.gotoBtn["state"] = "normal"
+                self.gotoBtn["state"] = "normal" # just use previously loaded offset
 
             driver.printDropNoMove(cb)
 
         def goto(self):
-            # disabled until both print and setpoint have been pressed
-            # has to be absolute move so we don't break anything
-            # disables stuff while moving
-            # TODO: figure out how to do this, not gonna do it now
-            pass
+            self.upBtn["state"] = "disabled"
+            self.eqPEnt["state"] = "disabled"
+            self.eqPBtn["state"] = "disabled"
+            self.doneBtn["state"] = "disabled"
+            self.setPntBtn["state"] = "disabled"
+            self.gotoBtn["state"] = "disabled"
+            self.abortBtn["state"] = "disabled"
+            self.printBtn["state"] = "disabled"
+
+
+            def cb():
+                self.gotoBtn["state"] = "normal"
+                self.upBtn["state"] = "normal"
+                self.eqPEnt["state"] = "normal"
+                self.eqPBtn["state"] = "normal"
+                self.doneBtn["state"] = "normal"
+                self.setPntBtn["state"] = "normal"
+                self.abortBtn["state"] = "normal"
+                self.printBtn["state"] = "normal"
+
+            driver.moveDropToCam(self.printLoc, cb)
 
         def setPnt(self):
             loc = driver.getStageXY()
@@ -703,14 +756,19 @@ class CalibrationMenu(ttk.Frame):
             self.eqPBtn["state"] = "disabled"
             self.eqPEnt["state"] = "disabled"
             self.doneBtn["state"] = "disabled"
+            interruptBtn["state"] = "normal"
+            # moveToSafeBtn["state"] = "disabled"
 
             def cb():
                 self.doneBtn["state"] = "normal"
                 self.toChipBtn["state"] = "normal"
+                interruptBtn["state"] = "disabled"
+                # moveToSafeBtn["state"] = "normal"
 
             driver.moveArmToUp(cb)
 
         def abort(self):
+            # TODO: this button / function may not be necessary
             # call interrupt, only enable done
             def cb():
                 self.doneBtn["state"] = "normal"
@@ -727,97 +785,19 @@ class CalibrationMenu(ttk.Frame):
             self.eqPBtn["state"] = "disabled"
             self.eqPEnt["state"] = "disabled"
             self.setPntBtn["state"] = "disabled"
+            interruptBtn["state"] = "normal"
+            # moveToSafeBtn["state"] = "disabled"
 
             def cb():
                 self.startBtn["state"] = "normal"
                 self.abortBtn["state"] = "disabled"
                 for btn in self.calibButtons: btn["state"] = "normal"
+                interruptBtn["state"] = "disabled"
+                # moveToSafeBtn["state"] = "normal"
 
             driver.moveArmToUp(cb)
 
-    class OffSetCalibration(ttk.LabelFrame):
-        # TODO: this will probably be deprecated by something else
-        # NOTE: not using this anymore 
-        def __init__(self, parent, calibButtons):
-            ttk.LabelFrame.__init__(self, parent, text="Printer Offset")
-            for i in range(5): self.rowconfigure(i, weight=1)
-
-            self.columnconfigure(0, weight=1)
-            self.infoLabel = ttk.Label(self, text="press start to begin", background="#eb584d")
-            grid(self.infoLabel, 0, 0,0 ,0 )
-            # disable all other buttons, pop up message saying "please move printer over waste slide, then hit print drop"
-            self.startBtn = ttk.Button(self, text="start", command= self.startOffset)
-            grid(self.startBtn, 1, 0,0 ,0)
-
-            # print drop, save position, udpate message to "please move drop into + of camera"
-            self.printBtn = ttk.Button(self, text="print drop", command=self.printDrop)
-            grid(self.printBtn, 2, 0,0 ,0)
-            self.printBtn["state"] = "disabled"
-            # drop in cross, save position, then we're done
-            self.focusBtn = ttk.Button(self, text="drop in center of +, save offset", command=self.dropFocused)
-            grid(self.focusBtn, 3, 0, 0 ,0)
-            self.focusBtn["state"] = "disabled"
-
-            # abort button to stop the calibration if you want
-            self.abortBtn = ttk.Button(self, text="abort offset calibration", command=self.abort)
-            grid(self.abortBtn, 4, 0 ,0 ,0)
-            self.abortBtn["state"] = "disabled"
-
-            self.printLoc = (None, None)
-
-            calibButtons.append(self.startBtn)
-
-        def getStartBtn(self): 
-            return self.startBtn
-            
-        def startOffset(self):
-            """ disable all other calib GUI buttons, enable print drop button, enable abort"""
-            # TODO: also disable all other calibration buttons
-            for btn in self.otherButtons: btn["state"] = "disabled"
-            self.abortBtn["state"] = "normal"
-            self.printBtn["stat"] = "normal"
-            self.startBtn["state"] = "disabled"
-            self.infoLabel.config(text="please move waste slide under printer, then hit \" print drop \"")
-
-        def printDrop(self):
-            """ print, save position of stage at time of printing """
-            def cb():
-                self.printLoc = driver.getStageXY()
-                self.printBtn["state"] = "disabled"
-                self.focusBtn["state"] = "normal"
-                self.infoLabel.config(text="please move drop into cross on camera")
-            cb() # placeholder for now
-
-            # driver.print()
-                # move head down
-                # apply voltage 
-                # move head up
-                
-        def dropFocused(self):
-            """ get location compute difference, store that in stage, re-enable all GUI buttons"""
-            # TODO: also re-enable all other calibration buttons
-            focusLoc = driver.getStageXY()
-            driver.saveOffset(self.printLoc[0] - focusLoc[0], self.printLoc[1] - focusLoc[0])
-            self.startBtn["state"] = "normal"
-            self.focusBtn["state"] = "disabled"
-            self.infoLabel.configure(text="done! Press start to recalibrate")
-            self.abortBtn["state"] = "disabled"
-            for btn in self.otherButtons: btn["state"] = "normal"
-            CALIB_DICT["printer offset"].configure(text=f"printer offset: {CALIBRATED}", background="#65d92b")
-            print(driver.microscope.stage.printerOffset)
-
-        def abort(self):
-            """ wipe self.dropLoc, enable start, disable everything else, including abort"""
-            # self.printLoc = (None, None)
-
-            self.startBtn["state"] = "normal"
-            self.printBtn["state"] = "disabled"
-            self.focusBtn["state"] = "disabled"
-            self.abortBtn["state"] = "disabled"
-
-            self.infoLabel.configure(text="Aborted. Press start to recalibrate")
-            for btn in self.otherButtons: btn["state"] = "normal"
-
+  
 class SanityMenu(ttk.Frame):
     def __init__(self, parent):
         ttk.Frame.__init__(self, parent)
@@ -867,13 +847,20 @@ class SanityMenu(ttk.Frame):
 
         def goWell(self):
             def cb(): 
+                # moveToSafeBtn["state"] = "normal"
+                interruptBtn["state"] = "disabled"
                 for btn in self.sanity_buttons: btn["state"] = "normal"
+
             well = self.wellEnt.get()
+
             try:
                 for btn in self.sanity_buttons: btn["state"] = "disabled"
+                interruptBtn["state"] = "normal"
+                # moveToSafeBtn["state"] = "disabled"
+
                 driver.movePrinterOverWell(well, cb)
-            except:
-                messagebox.showerror(title="Bad Input", message="Please make sure you entered a valid well ID and that the position of the first well on the camera has been calibrated")
+            except Exception as e:
+                messagebox.showerror(title="Going over well failed", message=f"error: {str(e)}")
 
     class OverChannel(ttk.LabelFrame):
         def __init__(self, parent, buttons):
@@ -901,18 +888,24 @@ class SanityMenu(ttk.Frame):
             self.downBtn["state"] = "disabled"
 
             # arm needs to move back up when done
-            self.upBtn = ttk.Button(self, text="move arm back up", command=self.moveUp)
+            self.upBtn = ttk.Button(self, text="done", command=self.moveUp)
             self.upBtn.grid(row=3, column=0, columnspan=2, stick='nsew')
             self.upBtn["state"] = "disabled"
+
 
             # for child in self.winfo_children(): self.sanity_buttons.append(child)
         
         def aboveChan(self):
             def cb(): 
                 self.downBtn["state"] = "normal"
+                self.upBtn["state"] = "normal"
+                interruptBtn["state"] = "disabled"
+                # moveToSafeBtn["state"] = "normal"
             chan = self.chanEnt.get()
             try:
                 chan = int(chan)
+                interruptBtn["state"] = "normal"
+                # moveToSafeBtn["state"] = "disabled"
                 for btn in self.sanity_buttons: btn["state"] = "disabled"
                 driver.movePrinterOverChannel(chan, cb)
             except ValueError as e:
@@ -921,17 +914,18 @@ class SanityMenu(ttk.Frame):
 
         def moveDown(self):
             def cb():
+                interruptBtn["state"] = "disabled"
+                # moveToSafeBtn["state"] = "normal"
                 self.upBtn["state"] = "normal"
             self.downBtn["state"] = "disabled"
+
             driver.movePrinterToChip(cb)
 
         def moveUp(self):
             def cb(): 
-
                 for btn in self.sanity_buttons: btn["state"] = "normal"
             self.upBtn["state"] = "disabled"
-            driver.moveArmToUp(cb)
-            
+            driver.moveArmToUp(cb) 
 
     class ChanOnCam(ttk.Labelframe):
         def __init__(self, parent, buttons):
@@ -1121,6 +1115,18 @@ class AdditionalCommands(ttk.LabelFrame):
 
             chanWin.protocol("WM_DELETE_WINDOW", on_closing)
             self.chanOpen = True
+
+class AdditionalMenu(ttk.Frame):
+    """ 
+    Menu for issuing any low level commands and anything else we can think of
+    """
+    def __init__(self, parent):
+        ttk.Frame.__init__(self, parent)
+
+
+
+
+
 
 class ChannelContents(ttk.Frame):
     def __init__(self, parent):
