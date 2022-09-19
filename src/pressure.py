@@ -15,7 +15,7 @@ class Pressure:
   def calibrate(self):
     self.pcontroller.calibrate(save=True)
 
-  def calibPressureValues(self, inPressure: int, eqPressure: int, outPressure: int):
+  def calibPressureValues(self, inPressure: float, eqPressure: float, outPressure: float):
     self.inPressure = inPressure
     self.eqPressure = eqPressure
     self.outPressure = outPressure
@@ -29,6 +29,10 @@ class Pressure:
   def dispense(self):
     self.pcontroller.set_pressure(4, self.outPressure)
     sleep(2)
+    self.pcontroller.set_pressure(4, self.eqPressure)
+
+  def saveAndSetEq(self, eqP: float):
+    self.eqPressure = eqP
     self.pcontroller.set_pressure(4, self.eqPressure)
 
   def stop(self):

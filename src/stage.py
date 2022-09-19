@@ -169,6 +169,17 @@ class Stage:
             cmd = f"G,{self.firstChannelCamPos[0]},{self.firstChannelCamPos[1]+yOffset}"
             self.writeRead(cmd, isMoveCmd=True)
 
+    def moveDropToCam(self, dropLoc: tuple[int, int]):
+        """
+        Moves the stage by subtracting offset from the current position.
+        Intended to be used to show a drop on the camera.
+
+        :param dropX: x, y location of drop in steps
+        :type dropX: tuple[int, int]
+        """
+        cmd = f"G,{dropLoc[0] - self.printerOffset[0]},{dropLoc[1] - self.printerOffset[1]}"
+        self.writeRead(cmd, isMoveCmd=True)
+
     def getStageX(self) -> int:
         """Get X position of the stage (in number of motor steps)
 

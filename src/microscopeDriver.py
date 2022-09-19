@@ -322,13 +322,13 @@ class MicroscopeDriver:
         self.microscope.moveArmToUp()
         cb()
 
-    def testPrintMultipleDrops(self, channelNum: int, drops: int, cb):
+    def testPrintMultipleDrops(self, drops: int, cb):
         # TODO: maybe remove channel requirement and make it drop in place
         # requires: printer head is above the waste slide
             # move down, print drops in a row, move up, show first drop on cam 
             # show first drop = firstDropLoc - offset (I'm pretty sure)
         """Tests printing multiple drops of currently held
-        sample to a single channel.
+        sample to the current position of the printer head.
         Used to test
         - first channel calibration
         - printer head offset calibration
@@ -338,8 +338,6 @@ class MicroscopeDriver:
         so it doesn't include the step of sucking in the sample beforehand.
         That should have been tested earlier
 
-        :param channelNum: 'channel' to print to
-        :type channelNum: int
         :param drops: number of drops to print on the slide
         :type drops: int
         :param cb: callback to reenable buttons on ui
@@ -369,24 +367,47 @@ class MicroscopeDriver:
 
         # TODO: have a stage command that can move horizontally slightly
         self.microscope.moveArmToUp()
-        # if self.__checkInterrupt(cb): return
+        if self.__checkInterrupt(cb): return
+
         self.microscope.movePrinterDownToChannel()
         if self.__checkInterrupt(cb): return
 
+        firstDrop = self.microscope.getStageXY()
+
         for _ in range(drops):
             if self.__checkInterrupt(cb): return
-            self.microscope.printSample()
+            self.microscope.printSample(1, save=False) # doesn't actually update channel 1
+            if self.__checkInterrupt(cb): return
+            self.microscope.stage.moveXInUM(-500) # something like this, move 500 um to the right
         if self.__checkInterrupt(cb): return
-        self.microscope.stage.moveXInUM(150) # something like this, move 100 um to the right
 
+        self.microscope.moveArmToUp()
+        if self.__checkInterrupt(cb): return
+
+        self.microscope.stage.moveDropToCam(dropLoc=firstDrop)
         cb()
-        #TODO: implement relative stage x move
-        raise NotImplementedError("implement relative stage x move")
 
     # ================ low level functions ==================
     # these low level functions are intended to provide the user with a small amount
     # of control to continue doing sanity checks, or to do small stuff (like focusing a channel)
     # some of these will also be called by high level functions for cleanup / setup
+
+
+    def moveDropToCam(self, dropX: int, dropY: int, cb):
+        """
+        Moves the stage by subtracting offset from the current position.
+        Intended to be used to show a drop on the camera.
+
+        :param dropX: x location of drop in steps
+        :type dropX: int
+        :param dropY: y location of drop in steps
+        :type dropY: int
+        """
+        # start thread
+
+    def __moveDropToCam(self, dropX, dropY, cb):
+        self.microscope.stage.move
+
     def movePrinterOverWell(self, wellID: str, cb):
         """
         Moves the printer over the specified well. 
@@ -983,14 +1004,11 @@ class MicroscopeDriver:
             return False
 
     def close(self, cb):
-        # TODO: haven't figured out how to join interrupt thread
-        # do that tomorrow
         """
         Closes all connected devices.
         Issues an interrupt command, meaning all movement will be
         interrupted
         """
-        #TODO: have an interrupt here
         print("driver closing")
         self.interrupt(cb)
         print("\tinterrupt command issued")

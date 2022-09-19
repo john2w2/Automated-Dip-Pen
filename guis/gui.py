@@ -1,3 +1,5 @@
+from calendar import setfirstweekday
+from email import message
 import tkinter as tk
 import sys
 sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
@@ -648,6 +650,7 @@ class CalibrationMenu(ttk.Frame):
                     if not res: return
                 
                 # TODO: here is where we set equilibrium pressure, need to implement first
+                driver.microscope.printer.pressure.saveAndSetEq(pVal)
 
             except ValueError:
                 res = messagebox.showerror(title="bad input", message="Please be sure you entered a valid pressure value")
@@ -687,6 +690,9 @@ class CalibrationMenu(ttk.Frame):
             loc = driver.getStageXY()
             self.offset = (self.printLoc[0] - loc[0], self.printLoc[1] - loc[1])
             driver.saveOffset(self.printLoc[0] - loc[0], self.printLoc[1] - loc[1])
+            # TODO: update calib dict
+            CALIB_DICT["printer offset"].config(text=f"printer offset: {CALIBRATED}", background="#65d92b")
+
 
         def armUp(self):
             # moves up, cb disables all printing related buttons
@@ -835,6 +841,9 @@ class SanityMenu(ttk.Frame):
 
         printRow = self.PrintRow(self, self.sanity_buttons)
         grid(printRow, 4, 0, 5, 5)
+
+        printChan = self.PrintChan(self, self.sanity_buttons)
+        grid(printChan, 5, 0, 5, 5)
         
     class OverWell(ttk.LabelFrame):
         def __init__(self, parent, buttons):
@@ -869,7 +878,8 @@ class SanityMenu(ttk.Frame):
     class OverChannel(ttk.LabelFrame):
         def __init__(self, parent, buttons):
             ttk.LabelFrame.__init__(self, parent, text="Test head above channel")
-            for i in range(2): 
+            # TODO: have a button to move it back up, only enable buttons after moved up
+            for i in range(4): 
                 self.rowconfigure(i, weight=1)
                 self.columnconfigure(i, weight=1)
 
@@ -884,12 +894,22 @@ class SanityMenu(ttk.Frame):
             goBtn = ttk.Button(self, text="go above channel",command=self.aboveChan)
             goBtn.grid(row=1,column=0, columnspan=2, sticky='nsew')
 
-            for child in self.winfo_children(): self.sanity_buttons.append(child)
+            self.sanity_buttons.extend([chanLab, self.chanEnt, goBtn])
+
+            self.downBtn = ttk.Button(self, text="move down to chip", command=self.moveDown)
+            self.downBtn.grid(row=2, column=0, columnspan=2, stick='nsew')
+            self.downBtn["state"] = "disabled"
+
+            # arm needs to move back up when done
+            self.upBtn = ttk.Button(self, text="move arm back up", command=self.moveUp)
+            self.upBtn.grid(row=3, column=0, columnspan=2, stick='nsew')
+            self.upBtn["state"] = "disabled"
+
+            # for child in self.winfo_children(): self.sanity_buttons.append(child)
         
         def aboveChan(self):
-            # TODO: cb
             def cb(): 
-                for btn in self.sanity_buttons: btn["state"] = "normal"
+                self.downBtn["state"] = "normal"
             chan = self.chanEnt.get()
             try:
                 chan = int(chan)
@@ -898,6 +918,20 @@ class SanityMenu(ttk.Frame):
             except ValueError as e:
                 print(e)
                 messagebox.showerror(title="Invalid Channel", message=f"{chan} is not a valid channel")
+
+        def moveDown(self):
+            def cb():
+                self.upBtn["state"] = "normal"
+            self.downBtn["state"] = "disabled"
+            driver.movePrinterToChip(cb)
+
+        def moveUp(self):
+            def cb(): 
+
+                for btn in self.sanity_buttons: btn["state"] = "normal"
+            self.upBtn["state"] = "disabled"
+            driver.moveArmToUp(cb)
+            
 
     class ChanOnCam(ttk.Labelframe):
         def __init__(self, parent, buttons):
@@ -952,7 +986,7 @@ class SanityMenu(ttk.Frame):
 
     class PrintRow(ttk.LabelFrame):
         def __init__(self, parent, sanityButtons):
-            ttk.LabelFrame.__init__(self, parent, text="Print a row of drops")
+            ttk.LabelFrame.__init__(self, parent, text="Print a row of drops to current position")
             self.sanityButtons = sanityButtons
 
             lab = ttk.Label(self, text="number of drops")
@@ -960,8 +994,56 @@ class SanityMenu(ttk.Frame):
             self.dropsEnt = ttk.Entry(self)
             grid(self.dropsEnt,0, 1, 5, 5)
 
-            goBtn = ttk.Button(self, text="print drops")
+            goBtn = ttk.Button(self, text="print drops", command=self.printDrops)
             goBtn.grid(row=1, column=0, columnspan=2, sticky='nsew', padx=5, pady=5)
+            # TODO: add these buttons to sanity buttons
+            self.sanityButtons.extend([lab, self.dropsEnt, goBtn])
+
+        def printDrops(self):
+            num = self.dropsEnt.get()
+            try:
+                num = int(num)
+                if num < 1 or num > 10:
+                    messagebox.showerror(title="bad number of drops", message="please enter an integer between 1 and 10 (inclusive)")
+                    return
+                
+                # TODO: cb - disable other sanity menu items
+                def cb():
+                    for btn in self.sanityButtons: btn["state"] = "normal"
+
+                for btn in self.sanityButtons: btn["state"] = "disabled"
+                driver.testPrintMultipleDrops(num, cb)
+
+            except Exception as e:
+                messagebox.showerror(title="method failed", message=f"{str(e)}")
+
+    class PrintChan(ttk.LabelFrame):
+        def __init__(self, parent, buttons):
+            ttk.LabelFrame.__init__(self, parent, text= 'Print to specific channel')
+            
+            self.sanity_buttons = buttons
+            lab = ttk.Label(self, text="select channel (ex: 22)")
+            grid(lab, 0, 0, 0, 0)
+
+            self.chanEnt = ttk.Entry(self)
+            grid(self.chanEnt, 0, 1, 0, 0)
+
+            self.goBtn = ttk.Button(self, text="print to channel", command=self.printToChan)
+            self.goBtn.grid(row = 1, column = 0, columnspan=2, sticky='nsew')
+
+            self.sanity_buttons.extend([lab, self.chanEnt, self.goBtn])
+
+        def printToChan(self):
+            chan = self.chanEnt.get()
+            try:
+                chan = int(chan)
+                def cb():
+                    for btn in self.sanity_buttons: btn["state"] = "normal"
+                for btn in self.sanity_buttons: btn["state"] = "disabled"
+
+                driver.testPrintDropToChan(chan, cb)
+            except Exception as e:
+                messagebox.showerror(title="error", message=f"{str(e)}")
 
 class CalibratedList(ttk.LabelFrame):
     def __init__(self, parent, calibrations):

@@ -151,7 +151,7 @@ class AutomatedSCA:
         """
         self.arm.moveZUpPos()
 
-    def printSample(self, channelNum: int):
+    def printSample(self, channelNum: int, save=True):
         """
         Applies a voltage to the printer head, printing a
         single cell. Also updates the stored contents of the chip. 
@@ -163,8 +163,8 @@ class AutomatedSCA:
         used to update stored contents of chip
         :type channelNum: int
         """
-
-        self.chip.fillChannel(channelNum, self.currentSample)
+        if (save):
+            self.chip.fillChannel(channelNum, self.currentSample)
         self.printer.printSingleDrop()
 
     def getSample(self, wellID: str):

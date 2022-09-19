@@ -39,9 +39,9 @@ void takeSteps(int steps){
 
   for(int i = 0; i < steps * microstep; i++){  
     digitalWrite(stepPin, HIGH);
-    delayMicroseconds(250);
+    delayMicroseconds(500);
     digitalWrite(stepPin, LOW);
-    delayMicroseconds(250);
+    delayMicroseconds(500);
   }
 }
 
