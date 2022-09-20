@@ -84,17 +84,12 @@ class MicroscopeDriver:
         """
         self.microscope.resetStageOrigin()
 
-    def recalibrateOB1(self, cb):
+    def recalibrateOB1(self):
         """
-        Starts a thread that recalibrates the OB1 pressure system
-        :param cb: Callback function used to reenable buttons on UI
-        :type cb: function
+        Recalibrates the OB1 pressure system. This recalibration is 
+        asynchronous and we can't really get a signal when it completes.
         """
-        #TODO: when this is implemented it will have to be threaded
-        # self.microscope.printer.calibPressureSystem()
-        print("recalibrating ob1 not done yet, I don't wanna wait for too long")
-        pass
-        # raise NotImplementedError("pressure system not implemented yet")
+        self.microscope.printer.calibPressureSystem()
 
     def saveFirstChannelCamPos(self):
         """Saves the current stage position as the 
@@ -370,6 +365,38 @@ class MicroscopeDriver:
     # of control to continue doing sanity checks, or to do small stuff (like focusing a channel)
     # some of these will also be called by high level functions for cleanup / setup
 
+    def moveToZRelInUM(self, um, cb):
+        """_summary_
+
+        :param um: _description_
+        :type um: _type_
+        :param cb: _description_
+        :type cb: function
+        """
+
+        t: Thread = Thread(target=self.__moveToZRelInUM, args=[um, cb])
+        self.currentThread = t
+        t.start()
+
+    def __moveToZRelInUM(self, um, cb):
+        self.microscope.arm.zmotor.moveToZRelInUM(um)
+        cb()
+
+    def moveToZInSteps(self, steps, cb):
+        """_summary_
+
+        :param steps: _description_
+        :type steps: _type_
+        :param cb: _description_
+        :type cb: function
+        """
+        t: Thread = Thread(target=self.__moveToZInSteps, args=[steps, cb])
+        self.currentThread = t
+        t.start()
+
+    def __moveToZInSteps(self, steps, cb):
+        self.microscope.arm.zmotor.moveToZInSteps(steps)
+        cb()
 
     def moveDropToCam(self, dropLoc: tuple[int, int], cb):
         """

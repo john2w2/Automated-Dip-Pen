@@ -5,7 +5,7 @@ from tkinter import ttk
 # TODO: make selection color an init parameter so we can make context
 
 class WellSelect(tk.Frame):
-    def __init__(self, parent, bg="#ffffff"):
+    def __init__(self, parent, plateSize=96, bg="#ffffff"):
         tk.Frame.__init__(self, parent)
         self.labels = []
         self.lut = {}
@@ -14,9 +14,21 @@ class WellSelect(tk.Frame):
         self.prevSelectedLabels = None
         self.defaultBG = bg
 
-        for r in range(8):
-            for c in range(12):
-                name = "abcdefgh"[r] + str(c + 1)
+        rows = None
+        cols = None
+        if plateSize == 6:
+            rows = 2
+            cols = 3
+        elif plateSize == 96:
+            rows = 8
+            cols = 12
+        elif plateSize == 384:
+            rows = 16
+            cols = 24
+
+        for r in range(rows):
+            for c in range(cols):
+                name = "abcdefghijklmnopqrstuvwxyz"[r] + str(c + 1)
                 lab = tk.Label(self, 
                     name=name, 
                     text=name.upper(),

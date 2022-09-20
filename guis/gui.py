@@ -18,6 +18,8 @@ STARTUP_DISABLED_BUTTONS = [] # list of buttons that should be disabled before s
 CALIB_DICT = {} # dictionary mapping device name to calibration status
 ARM_ENABLES = [] # buttons that get enabled by the arm being calibrated
 
+WELL_PLATE_SIZE = None
+
 CALIBRATED = "calibrated"
 NOT_CALIBRATED = "not calibrated"
 LOADED = "loaded from previous run"
@@ -173,6 +175,10 @@ class HighLevel(ttk.LabelFrame):
                     for item in STARTUP_DISABLED_BUTTONS: item["state"] = "normal"
                     for item in self.items: item["state"] = "disabled" 
                 
+                # set plate size for well select widget
+                global WELL_PLATE_SIZE
+                WELL_PLATE_SIZE = plateSize
+
                 global driver
                 driver = MicroscopeDriver(priorPort=priorP, arduinoPort=ardP,
                                           plateSize=plateSize, numChan=numChan, 
@@ -229,7 +235,7 @@ class PrintEachToK(ttk.Labelframe):
         self.openWellsBtn = ttk.Button(self, text="open well select menu", cursor="hand2", command=self.openWellSelectMenu)
         grid(self.openWellsBtn, 0, 0, 5, 5)
 
-        self.selectedWellsList = ttk.Label(self, text="selected wells:")
+        self.selectedWellsList = ttk.Label(self, text="selected wells:", font=("Roboto Mono","10"))
         grid(self.selectedWellsList, 1, 0, 5, 5)
 
         kLabel = ttk.Label(self, text="number of channels for each sample")
@@ -255,7 +261,7 @@ class PrintEachToK(ttk.Labelframe):
             self.wellSelectMenu = tk.Toplevel(root)
             self.wellSelectMenu.title("Well Select Menu")
             # NOTE: WellSelect is an imported class
-            self.selectWidget = WellSelect(self.wellSelectMenu)
+            self.selectWidget = WellSelect(self.wellSelectMenu, plateSize=WELL_PLATE_SIZE)
             grid(self.selectWidget, 0,0,0,0)
             self.selectWidget.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
 
@@ -349,6 +355,7 @@ class CalibrationMenu(ttk.Frame):
         self.buttons = []
 
         #TODO: figure out how to make calib button not obscenely large
+        # TODO: allow user to input all 3 stage positions (measured in mm from bottom of limit switch)
         self.calibArmBtn = ttk.Button(self, text="calibrate arm Z axis\n(move to top limit switch)", command=self.calibArm)
         self.calibArmBtn.grid(row=0, column=0, rowspan=1, sticky='nsew', padx=5, pady=5)
         self.buttons.append(self.calibArmBtn)
@@ -365,8 +372,12 @@ class CalibrationMenu(ttk.Frame):
         pressureCal = self.PressureCalibration(self, self.buttons)
         pressureCal.grid(row=4, column=1, rowspan=2, sticky='nsew', padx=5, pady=5)
 
+        armPos = self.ArmPositions(self, self.buttons)
+        armPos.grid(row=7, column=1, sticky='nsew')
+
         for item in self.buttons: item["state"] = "disabled" if CALIB_DICT["arm"].cget('text') != f"arm: {CALIBRATED}" else "normal"
         self.calibArmBtn["state"] = "normal"
+
 
     def calibArm(self):
         """ recalibrates the z axis arm """
@@ -374,7 +385,6 @@ class CalibrationMenu(ttk.Frame):
         for btn in self.buttons: btn["state"] = "disabled"
         self.calibArmBtn["state"] = "disabled"
         # can't interrupt this movement unfortunately
-
 
         def cb():
             for btn in self.buttons: btn["state"] = "normal"
@@ -385,6 +395,35 @@ class CalibrationMenu(ttk.Frame):
             # moveToSafeBtn["state"] = "normal"
 
         driver.calibrateZArm(cb)
+
+    class ArmPositions(ttk.LabelFrame):
+        def __init__(self, parent, calibButtons):
+            # TODO: somehow need to load these from a file to fill entries
+            # or a button that pops up a window that will list them out
+            ttk.LabelFrame.__init__(self, parent, text="Save arm Positions (mm)")
+            description = ttk.Label(self, text="Positions of arm, measured in mm from the top of the \n motor mount to the top limit switch's lever")
+            description.grid(row=0, column=0, columnspan=3, sticky='nsew')
+
+            # grid(description, 0, 0, 5, 5)
+            # TODO: should this also allow you to move the arm around??????????
+            self.upEnt = ttk.Entry(self)
+            saveUpBtn = ttk.Button(self, text="save 'safe' position")
+            grid(self.upEnt, 1, 0, 5, 5)
+            grid(saveUpBtn, 1, 1, 5, 5)
+
+            self.chipEnt = ttk.Entry(self)
+            saveChipBtn = ttk.Button(self, text="save 'above chip' position")
+            grid(self.chipEnt, 2, 0, 5, 5)
+            grid(saveChipBtn, 2, 1, 5, 5)
+
+            self.wellEnt = ttk.Entry(self)
+            saveWellBtn = ttk.Button(self, text="save 'in well' position")
+            grid(self.wellEnt, 3, 0, 5, 5)
+            grid(saveWellBtn, 3, 1, 5, 5)
+
+            # TODO: these buttons don't actually do anything right now, need to implement them later
+
+            for itm in self.winfo_children(): calibButtons.append(itm)
 
     class StageCalibration(ttk.LabelFrame):
         def __init__(self, parent, calibButtons):
@@ -455,17 +494,9 @@ class CalibrationMenu(ttk.Frame):
             calibButtons.extend([self.calOB1, self.inPEnt, self.eqPEnt, self.outPEnt, saveVals])
 
         def calibOB1(self):
-            def cb():
-                # TODO: this shouldn't disable everything, just: get drop, save pressure values
-                # well, for now it's ok to disable / re-enable everything
-                # re-enable other calibration buttons
-                for item in self.calibButtons: item["state"] = "normal"
-                # moveToSafeBtn["state"] = "normal"
-                
-            for item in self.calibButtons: item["state"] = "disabled"
-            # moveToSafeBtn["state"] = "disabled"
-
-            driver.recalibrateOB1(cb)
+            res = messagebox.askokcancel(title="recalibrate OB1", message="Are you sure you want to recalibrate the OB1? This takes about 3 minutes. Also, please don't run any other functions while calibration is happening")
+            if res:
+                driver.recalibrateOB1()
 
         def savePressures(self):
             # check if inputs are valid
@@ -1149,7 +1180,8 @@ class AdditionalMenu(ttk.Frame):
         aoBtn = ttk.Button(armFrame, text="calibrate origin", command=self.calibOrigin)
         self.armSEnt = ttk.Entry(armFrame)
         armSBtn = ttk.Button(armFrame, text="move to absolute (in steps)", command=self.moveInSteps)
-        stepbtn = ttk.Button(armFrame, text="output position (in steps) to terminal", command=self.getZPos)
+        stepbtn = ttk.Button(armFrame, text="output position to terminal", command=self.getZPos)
+        intBtn = ttk.Button(armFrame, text="interrupt movement", command=self.intteruptArm)
 
         grid(self.armEnt, 0, 0, 5, 5)
         grid(armBtn, 0, 1, 5, 5)
@@ -1157,6 +1189,8 @@ class AdditionalMenu(ttk.Frame):
         grid(self.armSEnt, 2, 0, 5, 5)
         grid(armSBtn, 2, 1, 5, 5)
         grid(stepbtn, 3, 0, 5, 5)
+        grid(stepbtn, 3, 0, 5, 5)
+        grid(intBtn, 3, 1, 5, 5)
         grid(armFrame,0, 0, 5, 5)
 
         # apply certain pressure for certain num of seconds
@@ -1223,11 +1257,17 @@ class AdditionalMenu(ttk.Frame):
         grid(self.chanToPEnt, 2, 0, 5, 5)
         grid(chanToPBtn, 2, 1, 5, 5)        
         
+    def intteruptArm(self):
+        def fakecb():print("interrupting complete")
+        driver.interrupt(fakecb)
+
     def moveArm(self):
+        # TODO: call driver instead
         mm = self.armEnt.get()
+        def fakecb():print("done")
         try:
             mm = float(mm)
-            driver.microscope.arm.zmotor.moveToZRelInUM(mm * 1000)
+            driver.moveToZRelInUM(mm * 1000, fakecb)
         except Exception as e:
             print(e)
 
@@ -1237,15 +1277,19 @@ class AdditionalMenu(ttk.Frame):
 
     def moveInSteps(self):
         steps = self.armSEnt.get()
+        def fakecb():print("done")
+        
         try:
             steps = int(steps)
-            driver.microscope.arm.zmotor.moveToZInSteps(steps)
+            driver.moveToZInSteps(steps, fakecb)
         except Exception as e:
             print(e)
     
     def getZPos(self):
         print(f"steps: {driver.microscope.arm.zmotor.getZPosInSteps()}")
-        print(f"um: {driver.microscope.arm.zmotor.getZPosInUM()}")
+        inum = driver.microscope.arm.zmotor.getZPosInUM()
+        print(f"um: {inum}")
+        print(f"mm: {inum / 1000}")
 
     def applyPressure(self):
         pressure = self.paEnt.get()
