@@ -14,9 +14,10 @@ class Arm:
 
         # NOTE: these are all placeholder
         # TODO: load positions from file
-        self.zUpPos = -100 
-        self.zWellPos = -500
-        self.zChannelPos = -450
+        # last updated 9-20-22
+        self.zUpPos = -4200 
+        self.zWellPos = -5300
+        self.zChannelPos = -5300
 
     def calibrateOrigin(self):
         self.zmotor.calibrateOrigin()

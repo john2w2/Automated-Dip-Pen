@@ -214,14 +214,20 @@ class SingleToMultiple(ttk.LabelFrame):
 
         for child in self.winfo_children(): ARM_ENABLES.append(child)
 
-    #TODO: function to call printing, handling bad input with message box
+    def printSingleToMultiple(self):
+        sample = self.s2mWellEntry.get()
+        channels = self.s2mChanEntry.get()
+        def cb():
+            interruptBtn["state"] = "disabled"
+            for btn in STARTUP_DISABLED_BUTTONS: btn["state"] = "normal"
 
-    def getWellInput():
-        pass
+        try:
+            for btn in STARTUP_DISABLED_BUTTONS: btn["state"] = "disabled"
+            interruptBtn["state"] = "normal"
+            driver.printToMultipleChannels(sample, channels, cb)
 
-    def getChannelInput():
-        pass
-
+        except Exception as e:
+            messagebox.showerror(title="error", message=str(e))
 class PrintEachToK(ttk.Labelframe):
     def __init__(self, parent):
         ttk.LabelFrame.__init__(self, parent, text="Print Samples to K")
@@ -858,7 +864,7 @@ class SanityMenu(ttk.Frame):
     class OverWell(ttk.LabelFrame):
         def __init__(self, parent, buttons):
             ttk.LabelFrame.__init__(self, parent, text="Test head above well")
-            for i in range(2): 
+            for i in range(3): 
                 self.rowconfigure(i, weight=1)
                 self.columnconfigure(i, weight=1)
 
@@ -873,13 +879,22 @@ class SanityMenu(ttk.Frame):
             goBtn = ttk.Button(self, text="go above well", command=self.goWell)
             goBtn.grid(row=1,column=0, columnspan=2, sticky='nsew')
 
-            for child in self.winfo_children(): self.sanity_buttons.append(child)
+            self.downBtn = ttk.Button(self, text="go into well", command=self.headIntoWell)
+            self.downBtn.grid(row=2,column=0, columnspan=2, sticky='nsew')
+            self.downBtn["state"] = "disabled"
+
+
+            self.upBtn = ttk.Button(self, text="done", command=self.headUp)
+            self.upBtn.grid(row=3,column=0, columnspan=2, sticky='nsew')
+            self.upBtn["state"] = "disabled"
+
+            self.sanity_buttons.extend([wellLab, self.wellEnt, goBtn])
 
         def goWell(self):
             def cb(): 
-                # moveToSafeBtn["state"] = "normal"
                 interruptBtn["state"] = "disabled"
-                for btn in self.sanity_buttons: btn["state"] = "normal"
+                self.downBtn["state"] = "normal"
+                self.upBtn["state"] = "normal"
 
             well = self.wellEnt.get()
 
@@ -891,6 +906,26 @@ class SanityMenu(ttk.Frame):
                 driver.movePrinterOverWell(well, cb)
             except Exception as e:
                 messagebox.showerror(title="Going over well failed", message=f"error: {str(e)}")
+
+        def headIntoWell(self):
+            def cb():
+                interruptBtn["state"] = "disabled"
+
+            self.downBtn["state"] = "disabled"
+            interruptBtn["state"] = "normal"
+            for btn in self.sanity_buttons: btn["state"] = "disabled" 
+            driver.movePrinterIntoWell(cb)
+
+        def headUp(self):
+            def cb():
+                interruptBtn["state"] = "disabled"
+                for btn in self.sanity_buttons: btn["state"] = "normal"
+            
+            interruptBtn["state"] = "normal"
+            self.downBtn["state"] = "disabled"
+            self.upBtn["state"] = "disabled"
+            driver.moveArmToUp(cb)
+
 
     class OverChannel(ttk.LabelFrame):
         def __init__(self, parent, buttons):
@@ -1174,7 +1209,7 @@ class AdditionalMenu(ttk.Frame):
         ttk.Frame.__init__(self, parent)
         # move arm in mm, which will allow floats. Also calibrate arm (move to top), move to absolute z position in steps. print pos to console
             # labelframe, entry, button
-        armFrame = ttk.LabelFrame(self, text="move arm")
+        armFrame = ttk.LabelFrame(self, text="move arm (mm)")
         self.armEnt = ttk.Entry(armFrame)
         armBtn = ttk.Button(armFrame, text="move", command=self.moveArm)
         aoBtn = ttk.Button(armFrame, text="calibrate origin", command=self.calibOrigin)

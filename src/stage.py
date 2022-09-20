@@ -36,13 +36,10 @@ class Stage:
         self.plate = plate
         self.chip = chip
 
-        # TODO: for convenience right now, change later  - let files be loaded in
-        # self.firstWellPos = (-2147477, -293671)
-        # self.firstChannelCamPos = (-2016268, -1409635)
-        # load previously saved offset
-
         self.loadPrevOffset()
         self.loadPrevFirstChan()
+        self.loadPrevFirstWellPos()
+        # TODO: load previously saved first well cam position
 
         self.stepSize = stepSize
 
@@ -100,6 +97,7 @@ class Stage:
         :type stagePos: tuple
         """
         self.firstWellCamPos = stagePos
+        self.saveNewFirstWellPos(stagePos=stagePos)
         # Stage coordinates for first well under printer head
         # self.firstWellPos = (
         #     stagePos[0]+self.printerOffset[0], stagePos[1]+self.printerOffset[1])
@@ -505,6 +503,7 @@ class Stage:
             x = stagePos[0]
             y = stagePos[1]
 
+        # already saved by calibFirstChannelCamPos
             # self.firstChannelCamPos = tuple((x, y))
 
             f.write(f"{str(x)}\n")
@@ -524,6 +523,92 @@ class Stage:
         :type defaultY: int, optional
         """
         self.firstChannelCamPos = (defaultX, defaultY)
+
+        with open(pathToData, 'w+') as f:
+            f.write(f"{str(defaultX)}\n")
+            f.write(str(defaultY))
+
+    # first well stuff
+    def loadPrevFirstWellPos(self):
+        """
+        Loads most recently saved first well (x,y) values.
+        If the data doesn't exist or is unreadable, this method
+        will overwrite / create the file and load the default values
+        """
+        parentDir = pathlib.Path(__file__).parent.resolve()
+        calibPath = os.path.join(parentDir, 'calibrationFiles')
+        wellPath = os.path.join(calibPath, 'firstWell.txt')
+
+        if not os.path.exists(calibPath):
+            # calibration folder doesn't exist
+            os.makedirs(calibPath)
+            self.__makeDefFirstWellPosFile(pathToData=wellPath)
+        else:
+            if not os.path.exists(wellPath):
+                # calibration folder exists, but file holding channel values doesn't
+                self.__makeDefFirstWellPosFile(pathToData=wellPath)
+            else:
+                # the first channel calibration file and exists
+                with open(wellPath, 'r+') as f:
+                    line1 = f.readline() # can be None
+                    line2 = f.readline()  # can be None
+
+                    try:  # this will fail if formatting was bad
+                        # if any formatting error, it will happen here
+                        wellLoc = (int(line1), int(line2)) # error would happen here, before setting
+                        self.firstWellCamPos = wellLoc
+                    except:
+                        print("file is not formatted correctly, using default values")
+                        self.__makeDefFirstWellPosFile(pathToData=wellPath)
+
+    def restoreDefaultFirstWellPos(self):
+        """
+        Resets the stored first well location, storing the
+        default values in the calibration file and loading the
+        default values into the stage
+        """
+        parentDir = pathlib.Path(__file__).parent.resolve()
+        calibPath = os.path.join(parentDir, 'calibrationFiles')
+        wellPath = os.path.join(calibPath, 'firstWell.txt')
+        self.__makeDefFirstWellPosFile(pathToData=wellPath)
+
+    def saveNewFirstWellPos(self, stagePos: tuple[int, int]):
+        # TODO: this should replace calibFirstWell
+        """
+        Grabs the position of the stage and stores it as the
+        'first well centered on camera' position. Also stores those
+        values in a file to be used on future experiments
+        """
+        parentDir = pathlib.Path(__file__).parent.resolve()
+        calibPath = os.path.join(parentDir, 'calibrationFiles')
+        channelPath = os.path.join(calibPath, 'firstWell.txt')
+
+        if not os.path.exists(calibPath):
+            os.makedirs(calibPath)
+
+        with open(channelPath, 'w+') as f:
+            x = stagePos[0]
+            y = stagePos[1]
+
+            # self.firstChannelCamPos = tuple((x, y))
+
+            f.write(f"{str(x)}\n")
+            f.write(str(y))
+
+    # NOTE: can change these defaults in the future
+    def __makeDefFirstWellPosFile(self, pathToData: str, defaultX: int = -2467571, defaultY: int = 520509):
+        """
+        Helper method to create / overwrite the stored first well location with default values.
+        Also loads those default values into the stage
+
+        :param pathToData: path to file holding first well values
+        :type pathToData: str
+        :param defaultX: default x value (in steps), defaults to -1635268
+        :type defaultX: int, optional
+        :param defaultY: default y value (in steps), defaults to -1537768
+        :type defaultY: int, optional
+        """
+        self.firstWellCamPos = (defaultX, defaultY)
 
         with open(pathToData, 'w+') as f:
             f.write(f"{str(defaultX)}\n")
