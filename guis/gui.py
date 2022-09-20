@@ -648,7 +648,6 @@ class CalibrationMenu(ttk.Frame):
 
             # some fake(?) offset values
 
-        # this is a FSM
         def start(self):
             # TODO: should abort only be clickable during arm moves?
             # TODO: if I add a button to save the offset, then I don't need the entire drop offset menu
@@ -1072,6 +1071,7 @@ class AdditionalCommands(ttk.LabelFrame):
 
         self.camOpen = False
         self.chanOpen = False
+        self.lowOpen = False
 
         grid(FocusChannel(self), 0, 0,0,0)
 
@@ -1085,6 +1085,10 @@ class AdditionalCommands(ttk.LabelFrame):
         showChannelContents = ttk.Button(self, text="show channel contents", command = self.openChannels)
         grid(showChannelContents, 3, 0, 0, 0)
         STARTUP_DISABLED_BUTTONS.append(showChannelContents)
+
+        openMenu = ttk.Button(self, text="open low-level command menu", command=self.openLowMenu)
+        grid(openMenu, 4, 0, 0, 0)
+        STARTUP_DISABLED_BUTTONS.append(openMenu)
 
     def openCamera(self):
         def on_closing():
@@ -1103,6 +1107,20 @@ class AdditionalCommands(ttk.LabelFrame):
             cameraWin.protocol("WM_DELETE_WINDOW", on_closing)
             self.camOpen = True
 
+    def openLowMenu(self):
+        def on_closing():
+            lowWin.destroy()
+            self.lowOpen = False
+
+        if not self.lowOpen:
+            lowWin = tk.Toplevel(root)
+            lowWin.title("low level commands")
+            am = AdditionalMenu(lowWin)
+            grid(am, 0,0,0,0)
+            lowWin.protocol("WM_DELETE_WINDOW", on_closing)
+            self.lowOpen = True
+
+
     def openChannels(self):
         def on_closing():
             chanWin.destroy()
@@ -1117,16 +1135,173 @@ class AdditionalCommands(ttk.LabelFrame):
             self.chanOpen = True
 
 class AdditionalMenu(ttk.Frame):
+    # NOTE: This is just for when you want no automation but still want to control most things. pretty much all commands are nonblocking
     """ 
     Menu for issuing any low level commands and anything else we can think of
     """
     def __init__(self, parent):
         ttk.Frame.__init__(self, parent)
+        # move arm in mm, which will allow floats. Also calibrate arm (move to top), move to absolute z position in steps. print pos to console
+            # labelframe, entry, button
+        armFrame = ttk.LabelFrame(self, text="move arm")
+        self.armEnt = ttk.Entry(armFrame)
+        armBtn = ttk.Button(armFrame, text="move", command=self.moveArm)
+        aoBtn = ttk.Button(armFrame, text="calibrate origin", command=self.calibOrigin)
+        self.armSEnt = ttk.Entry(armFrame)
+        armSBtn = ttk.Button(armFrame, text="move to absolute (in steps)", command=self.moveInSteps)
+        stepbtn = ttk.Button(armFrame, text="output position (in steps) to terminal", command=self.getZPos)
+
+        grid(self.armEnt, 0, 0, 5, 5)
+        grid(armBtn, 0, 1, 5, 5)
+        grid(aoBtn, 1, 0, 5, 5)
+        grid(self.armSEnt, 2, 0, 5, 5)
+        grid(armSBtn, 2, 1, 5, 5)
+        grid(stepbtn, 3, 0, 5, 5)
+        grid(armFrame,0, 0, 5, 5)
+
+        # apply certain pressure for certain num of seconds
+            # labelframe, entry, entry, button
+        paFrame = ttk.LabelFrame(self, text="apply certain pressure for certain amount of time")
+        palab = ttk.Label(paFrame, text="pressure (mbar)")
+        self.paEnt = ttk.Entry(paFrame)
+        secLab = ttk.Label(paFrame, text="seconds")
+        applyPressureBtn = ttk.Button(paFrame, text="apply pressure", command=self.applyPressure)
+        self.secEnt = ttk.Entry(paFrame)
+
+        grid(palab, 0, 0, 0, 0)
+        grid(self.paEnt, 0, 1, 0, 0)
+        grid(secLab, 1, 0, 0, 0)
+        grid(self.secEnt, 1, 1, 0, 0)
+        applyPressureBtn.grid(row=2, column=0, columnspan=2, sticky='nsew')
+        grid(paFrame, 1,0,5,5)
+
+        # trigger jetserver
+            # labelframe, button
+        jFrame = ttk.LabelFrame(self, text="trigger jetserver")
+        jBtn = ttk.Button(jFrame, text="trigger")
+        grid(jFrame, 2, 0,5,5)
+        grid(jBtn, 0,0,5,5)
+
+        # set pressure for undefined amount of time (equilibrium pressure, in, out)
+            # labelframe, entry, button, stop button (set to zero)
+        self.steadyPFrame = ttk.LabelFrame(self, text="set steady pressure")
+        self.steadyPent = ttk.Entry(self.steadyPFrame)
+        self.steadyPBtn = ttk.Button(self.steadyPFrame, text="set this as pressure", command=self.setSteady)
+        steadyStopBtn = ttk.Button(self.steadyPFrame, text="set pressure to 0", command=self.clearSteady)
+        grid(self.steadyPFrame, 3, 0, 5,5)
+        grid(self.steadyPent, 0,0,5,5)
+        grid(self.steadyPBtn, 0,1,5,5)
+        grid(steadyStopBtn, 1,0,5,5)
+
+
+        # offset calibration menu
+            # labelframe, print button, set button, goto button
+            # stores self.printloc
+        offFrame = ttk.LabelFrame(self, text="offset calibration")
+        self.printLoc = (None, None)
+        printBtn = ttk.Button(offFrame, text="print drop, save location", command=self.triggerJet)
+        saveOffBtn = ttk.Button(offFrame, text="save offset (set point)", command=self.setPnt)
+        gotoBtn = ttk.Button(offFrame, text="goto drop", command=self.dropOnCam) # offset must be good first
+        grid(offFrame, 4, 0, 5,5)
+        grid(printBtn, 0,0,5,5)
+        grid(saveOffBtn,1,0,5,5)
+        grid(gotoBtn, 2,0,5,5)
 
 
 
+        stageFrame = ttk.LabelFrame(self, text="stage movement frame")
+        saveFirstBtn = ttk.Button(stageFrame, text="save position as first chan on camera", command=self.saveFirstChan)
+        self.chanToCamEnt = ttk.Entry(stageFrame)
+        chanToCamBtn = ttk.Button(stageFrame, text="show channel on camera", command=self.chanToCam)
+        self.chanToPEnt = ttk.Entry(stageFrame)
+        chanToPBtn = ttk.Button(stageFrame, text="move channel to printer", command=self.chanToPrinter)
 
+        grid(stageFrame, 5, 0, 5, 5)
+        grid(saveFirstBtn, 0, 0, 5, 5)
+        grid(self.chanToCamEnt, 1, 0, 5, 5)
+        grid(chanToCamBtn, 1, 1, 5, 5)
+        grid(self.chanToPEnt, 2, 0, 5, 5)
+        grid(chanToPBtn, 2, 1, 5, 5)        
+        
+    def moveArm(self):
+        mm = self.armEnt.get()
+        try:
+            mm = float(mm)
+            driver.microscope.arm.zmotor.moveToZRelInUM(mm * 1000)
+        except Exception as e:
+            print(e)
 
+    def calibOrigin(self):
+        def fakecb():x=3
+        driver.calibrateZArm(fakecb)
+
+    def moveInSteps(self):
+        steps = self.armSEnt.get()
+        try:
+            steps = int(steps)
+            driver.microscope.arm.zmotor.moveToZInSteps(steps)
+        except Exception as e:
+            print(e)
+    
+    def getZPos(self):
+        print(f"steps: {driver.microscope.arm.zmotor.getZPosInSteps()}")
+        print(f"um: {driver.microscope.arm.zmotor.getZPosInUM()}")
+
+    def applyPressure(self):
+        pressure = self.paEnt.get()
+        seconds = self.secEnt.get()
+        try:
+            pressure = float(pressure)
+            seconds = float(seconds)
+            driver.microscope.printer.pressure.pcontroller.set_pressure(4, pressure)
+            sleep(seconds)
+            driver.microscope.printer.pressure.pcontroller.set_pressure(4, 0)
+        except Exception as e:
+            print(e)
+
+    def setSteady(self):
+        steadyP = self.steadyPent.get()
+        try:
+            steadyP = float(steadyP)
+            driver.microscope.printer.pressure.pcontroller.set_pressure(4, steadyP)
+        except Exception as e:
+            print(e)
+
+    def clearSteady(self):
+            driver.microscope.printer.pressure.pcontroller.set_pressure(4, 0)
+
+    def triggerJet(self):
+        driver.microscope.printer.printSingleDrop()
+        self.printLoc=driver.getStageXY()
+
+    def setPnt(self):
+        loc = driver.getStageXY()
+        driver.saveOffset(self.printLoc[0] - loc[0], self.printLoc[1] - loc[1])
+    
+    def dropOnCam(self):
+        def fakecb():x=3
+        driver.moveDropToCam(self.printLoc, fakecb)
+
+    def saveFirstChan(self):
+        driver.saveFirstChannelCamPos()
+    
+    def chanToCam(self):
+        chan = self.chanToCamEnt.get()
+        try:
+            chan = int(chan)
+            def fakecb():x=3
+            driver.focusChannel(chan, fakecb)
+        except Exception as e:
+            print(e)
+    
+    def chanToPrinter(self):
+        chan = self.chanToPEnt.get()
+        try:
+            chan = int(chan)
+            def fakecb():print("done")
+            driver.movePrinterOverChannel(chan, fakecb)
+        except Exception as e:
+            print(e)
 
 class ChannelContents(ttk.Frame):
     def __init__(self, parent):
