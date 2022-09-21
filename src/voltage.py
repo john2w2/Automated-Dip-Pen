@@ -7,11 +7,13 @@ class Voltage:
         self.shockDuration = 0.2
 
     def print(self):
+        time.sleep(0.2)
         self.writeCmd("TTL,0,1")
         time.sleep(self.shockDuration)
         self.writeCmd("TTL,0,0")
         time.sleep(0.1)
         self.clearSer()
+        time.sleep(0.2)
 
     def writeCmd(self, cmd):
         cmd = f"{cmd}\r"

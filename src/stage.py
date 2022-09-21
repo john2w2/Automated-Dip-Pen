@@ -335,7 +335,8 @@ class Stage:
         val = self.writeRead(cmd, isMoveCmd=False)
         try:
             return bool(int(val))
-        except ValueError:
+        except ValueError as e:
+            # print(e)
             pass
 
     def checkYMoving(self) -> bool:
@@ -347,7 +348,8 @@ class Stage:
         val = self.writeRead(cmd, isMoveCmd=False)
         try:
             return bool(int(val))
-        except ValueError:
+        except ValueError as e:
+            # print(e)
             pass
 
     def close(self):

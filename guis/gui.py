@@ -1,4 +1,3 @@
-from calendar import setfirstweekday
 import tkinter as tk
 import sys
 sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
@@ -434,21 +433,22 @@ class CalibrationMenu(ttk.Frame):
     class StageCalibration(ttk.LabelFrame):
         def __init__(self, parent, calibButtons):
             ttk.Labelframe.__init__(self, parent, text="Stage Calibration")
-            self.calibStageFrame = ttk.Labelframe(self, text="Positioning")
+            # self.calibStageFrame = ttk.Labelframe(self, text="Positioning")
 
-            resetStageLab = ttk.Label(self.calibStageFrame, text="move stage until it hits the bottom and right limit \n switches, then hit \n \"recalibrate stage positioning\"")
-            grid(resetStageLab, 0, 0, 5, 5)
-            self.resetStageBtn = ttk.Button(self.calibStageFrame, text="recalibrate stage positioning", command=self.resetStagePositioning)
-            grid(self.resetStageBtn, 1,0,5,5)
+            # resetStageLab = ttk.Label(self.calibStageFrame, text="move stage until it hits the bottom and right limit \n switches, then hit \n \"recalibrate stage positioning\"")
+            # grid(resetStageLab, 0, 0, 5, 5)
+            # self.resetStageBtn = ttk.Button(self.calibStageFrame, text="recalibrate stage positioning", command=self.resetStagePositioning)
+            # grid(self.resetStageBtn, 1,0,5,5)
 
-            grid(self.calibStageFrame, 0, 0, 5, 5)
+            # grid(self.calibStageFrame, 0, 0, 5, 5)
 
             self.firstChanBtn = ttk.Button(self, text="save current position as 'first channel on camera'", command=self.saveFirstChannelCamPos)
             grid(self.firstChanBtn, 1, 0, 5, 5)
 
             self.firstWellBtn = ttk.Button(self, text="save current position as 'first well centered on camera'", command=self.saveFirstWellCamPos)
             grid(self.firstWellBtn, 2,0,5,5)
-            calibButtons.extend([self.resetStageBtn, self.firstChanBtn, self.firstWellBtn])
+            calibButtons.extend([self.firstChanBtn, self.firstWellBtn])
+            # calibButtons.extend([self.resetStageBtn, self.firstChanBtn, self.firstWellBtn])
 
         def resetStagePositioning(self):
             driver.calibrateStage()
@@ -1270,7 +1270,7 @@ class AdditionalMenu(ttk.Frame):
         self.printLoc = (None, None)
         printBtn = ttk.Button(offFrame, text="print drop, save location", command=self.triggerJet)
         saveOffBtn = ttk.Button(offFrame, text="save offset (set point)", command=self.setPnt)
-        gotoBtn = ttk.Button(offFrame, text="goto drop", command=self.dropOnCam) # offset must be good first
+        gotoBtn = ttk.Button(offFrame, text="show drop on cam", command=self.dropOnCam) # offset must be good first
         grid(offFrame, 4, 0, 5,5)
         grid(printBtn, 0,0,5,5)
         grid(saveOffBtn,1,0,5,5)
@@ -1278,7 +1278,7 @@ class AdditionalMenu(ttk.Frame):
 
 
 
-        stageFrame = ttk.LabelFrame(self, text="stage movement frame")
+        stageFrame = ttk.LabelFrame(self, text="stage movement")
         saveFirstBtn = ttk.Button(stageFrame, text="save position as first chan on camera", command=self.saveFirstChan)
         self.chanToCamEnt = ttk.Entry(stageFrame)
         chanToCamBtn = ttk.Button(stageFrame, text="show channel on camera", command=self.chanToCam)
@@ -1290,8 +1290,23 @@ class AdditionalMenu(ttk.Frame):
         grid(self.chanToCamEnt, 1, 0, 5, 5)
         grid(chanToCamBtn, 1, 1, 5, 5)
         grid(self.chanToPEnt, 2, 0, 5, 5)
-        grid(chanToPBtn, 2, 1, 5, 5)        
-        
+        grid(chanToPBtn, 2, 1, 5, 5)    
+
+
+
+        to40Frame = ttk.LabelFrame(self, text="print to 40 channels")
+        to40Btn = ttk.Button(to40Frame, text="print to 40", command=self.printToForty)
+        grid(to40Btn, 0, 0, 5, 5)    
+
+        grid(to40Frame, 6, 0, 5, 5)
+
+    def printToForty(self):
+        def fakecb():print("done printing to 40")
+        try:
+            driver.printCurrTo40(fakecb)
+        except Exception as e:
+            messagebox.showerror(title="something went wrong", message=str(e))
+
     def intteruptArm(self):
         def fakecb():print("interrupting complete")
         driver.interrupt(fakecb)
@@ -1358,7 +1373,7 @@ class AdditionalMenu(ttk.Frame):
         driver.saveOffset(self.printLoc[0] - loc[0], self.printLoc[1] - loc[1])
     
     def dropOnCam(self):
-        def fakecb():x=3
+        def fakecb(): print("drop on cam")
         driver.moveDropToCam(self.printLoc, fakecb)
 
     def saveFirstChan(self):
@@ -1439,6 +1454,8 @@ for item in ARM_ENABLES: item["state"] = "disabled"
 
 def close_main():
     def closeCB(): x=3
+    if (additional.camOpen):
+        messagebox.showerror(title="Camera open", message="Please close the camera display before closing the main GUI. This is to prevent a bug.")
     
     if driver != None:
         driver.close(closeCB)

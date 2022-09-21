@@ -760,6 +760,31 @@ class MicroscopeDriver:
         self.microscope.moveArmToUp()
         cb()
 
+    def printCurrTo40(self, cb):
+        """Prints the currently held sample to 40 channels, starting from the first channel
+        Assumes the printer head is already down. Does not move printer head back up
+        :param cb: _description_
+        :type cb: function
+        """
+        t:Thread = Thread(target=self.__printCurrTo40, args=[cb])
+        self.currentThread = t
+        t.start()
+
+    def __printCurrTo40(self, cb):
+        if self.__checkInterrupt(cb):return
+
+        # self.microscope.moveArmToUp()
+        # if self.__checkInterrupt(cb):return
+
+        for i in range(1, 41):
+            self.microscope.moveToChannelNoLift(i)
+            if self.__checkInterrupt(cb):return
+            self.microscope.printSample(i, save=False)
+            if self.__checkInterrupt(cb):return
+
+        cb()
+
+
     def printToMultipleChannels(self, wellID: str, channels: list[int], cb):
         """Starts a thread that gets a sample from wellID
         and prints it to each channel in the channels list,
