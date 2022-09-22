@@ -11,7 +11,7 @@ class Pressure:
     self.inPressure = -80
     self.eqPressure = 0
     self.outPressure = 80
-    self.inTime = 1
+    self.inTime = 3
     self.outTime = 3
 
   def calibrate(self):

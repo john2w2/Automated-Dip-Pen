@@ -399,7 +399,7 @@ class CalibrationMenu(ttk.Frame):
             self.buttons.append(self.calibArmBtn)
             STARTUP_DISABLED_BUTTONS.extend(ARM_ENABLES)
             for item in self.buttons: item["state"] = "normal"
-
+        
         driver.calibrateZArm(cb)
 
     class ArmPositions(ttk.LabelFrame):
@@ -552,7 +552,7 @@ class CalibrationMenu(ttk.Frame):
 
             inPDurLab = ttk.Label(self.pressureFrame, text="# of seconds to apply\nin pressure for")
             self.inPSecEnt = ttk.Entry(self.pressureFrame)
-            self.inPSecEnt.insert(0, "1") # has to match default value in pressure.py
+            self.inPSecEnt.insert(0, "3") # should match default value in pressure.py
             grid(inPDurLab, 1, 0, 5, 5)
             grid(self.inPSecEnt, 1, 1, 5, 0)
 
@@ -1246,7 +1246,7 @@ class AdditionalCommands(ttk.LabelFrame):
 
         openMenu = ttk.Button(self, text="open low-level command menu", command=self.openLowMenu)
         grid(openMenu, 4, 0, 0, 0)
-        STARTUP_DISABLED_BUTTONS.append(openMenu)
+        # STARTUP_DISABLED_BUTTONS.append(openMenu) # TODO: maybe uncomment this
 
     def openCamera(self):
         def on_closing():
@@ -1354,7 +1354,6 @@ class AdditionalMenu(ttk.Frame):
         grid(self.steadyPBtn, 0,1,5,5)
         grid(steadyStopBtn, 1,0,5,5)
 
-
         # offset calibration menu
             # labelframe, print button, set button, goto button
             # stores self.printloc
@@ -1367,8 +1366,6 @@ class AdditionalMenu(ttk.Frame):
         grid(printBtn, 0,0,5,5)
         grid(saveOffBtn,1,0,5,5)
         grid(gotoBtn, 2,0,5,5)
-
-
 
         stageFrame = ttk.LabelFrame(self, text="stage movement")
         saveFirstBtn = ttk.Button(stageFrame, text="save position as first chan on camera", command=self.saveFirstChan)
@@ -1384,17 +1381,20 @@ class AdditionalMenu(ttk.Frame):
         grid(self.chanToPEnt, 2, 0, 5, 5)
         grid(chanToPBtn, 2, 1, 5, 5)    
 
-
-
         to40Frame = ttk.LabelFrame(self, text="print to 40 channels")
         to40Btn = ttk.Button(to40Frame, text="print to 40", command=self.printToForty)
         grid(to40Btn, 0, 0, 5, 5)    
-
         grid(to40Frame, 6, 0, 5, 5)
 
+        self.buttons = [self.armEnt, armBtn, aoBtn, self.armSEnt, armSBtn, stepbtn, applyPressureBtn, jBtn, steadyStopBtn, printBtn, saveOffBtn, gotoBtn, saveFirstBtn, chanToCamBtn, chanToPBtn, to40Btn, self.steadyPBtn]
+
     def printToForty(self):
-        def fakecb():print("done printing to 40")
+        def fakecb(): print("done printing to 40")
         try:
+            # def cb():
+            #     for btn in self.buttons: btn["state"] = "normal"
+                
+            # for btn in self.button: btn["state"] = "disabled"
             driver.printCurrTo40(fakecb)
         except Exception as e:
             messagebox.showerror(title="something went wrong", message=str(e))
@@ -1404,26 +1404,32 @@ class AdditionalMenu(ttk.Frame):
         driver.interrupt(fakecb)
 
     def moveArm(self):
-        # TODO: call driver instead
         mm = self.armEnt.get()
-        def fakecb():print("done")
+        def cb():
+            for btn in self.buttons: btn["state"] = "normal"            
         try:
             mm = float(mm)
-            driver.moveToZRelInUM(mm * 1000, fakecb)
+
+            for btn in self.buttons: btn["state"] = "disabled"            
+            driver.moveToZRelInUM(mm * 1000, cb)
         except Exception as e:
             print(e)
 
     def calibOrigin(self):
-        def fakecb():x=3
-        driver.calibrateZArm(fakecb)
+        def cb():
+            for btn in self.buttons: btn["state"] = "normal"      
+        for btn in self.buttons: btn["state"] = "disabled"            
+        driver.calibrateZArm(cb)
 
     def moveInSteps(self):
         steps = self.armSEnt.get()
-        def fakecb():print("done")
-        
+
+        def cb():
+            for btn in self.buttons: btn["state"] = "normal"    
         try:
             steps = int(steps)
-            driver.moveToZInSteps(steps, fakecb)
+            for btn in self.buttons: btn["state"] = "disabled"    
+            driver.moveToZInSteps(steps, cb)
         except Exception as e:
             print(e)
     
@@ -1465,8 +1471,11 @@ class AdditionalMenu(ttk.Frame):
         driver.saveOffset(self.printLoc[0] - loc[0], self.printLoc[1] - loc[1])
     
     def dropOnCam(self):
-        def fakecb(): print("drop on cam")
-        driver.moveDropToCam(self.printLoc, fakecb)
+        def cb():
+            for btn in self.buttons: btn["state"] = "normal"    
+        
+        for btn in self.buttons: btn["state"] = "disabled"    
+        driver.moveDropToCam(self.printLoc, cb)
 
     def saveFirstChan(self):
         driver.saveFirstChannelCamPos()
@@ -1475,8 +1484,11 @@ class AdditionalMenu(ttk.Frame):
         chan = self.chanToCamEnt.get()
         try:
             chan = int(chan)
-            def fakecb():x=3
-            driver.focusChannel(chan, fakecb)
+            def cb():
+                for btn in self.buttons: btn["state"] = "normal"    
+        
+            for btn in self.buttons: btn["state"] = "disabled"    
+            driver.focusChannel(chan, cb)
         except Exception as e:
             print(e)
     
@@ -1484,8 +1496,11 @@ class AdditionalMenu(ttk.Frame):
         chan = self.chanToPEnt.get()
         try:
             chan = int(chan)
-            def fakecb():print("done")
-            driver.movePrinterOverChannel(chan, fakecb)
+            def cb():
+                for btn in self.buttons: btn["state"] = "normal"    
+        
+            for btn in self.buttons: btn["state"] = "disabled"    
+            driver.movePrinterOverChannel(chan, cb)
         except Exception as e:
             print(e)
 
