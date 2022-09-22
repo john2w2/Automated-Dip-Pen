@@ -42,6 +42,21 @@ class Arm:
         pos = self.zmotor.getZPosInSteps()
         self.zChannelPos = pos
 
+    def saveZUpPos(self, mm:float):
+        um = mm * 1000 
+        steps = um / self.zmotor.stepper.distPerStep
+        self.zUpPos = steps
+
+    def saveZChipPos(self, mm:float):
+        um = mm * 1000
+        steps = um / self.zmotor.stepper.distPerStep
+        self.zChannelPos = steps
+
+    def saveZWellPos(self, mm:float):
+        um = mm * 1000
+        steps = um / self.zmotor.stepper.distPerStep
+        self.zWellPos = steps
+
     def moveZUpPos(self):
         # TODO: add check that self.zUpPos exists
         self.zmotor.moveToZInSteps(self.zUpPos)

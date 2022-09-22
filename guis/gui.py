@@ -1,3 +1,5 @@
+from cgitb import text
+from email import message
 import tkinter as tk
 import sys
 sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
@@ -59,7 +61,7 @@ class HighLevel(ttk.LabelFrame):
         interruptBtn["state"] = "disabled"
 
         global moveToSafeBtn
-        moveToSafeBtn = ttk.Button(self, text="move arm to a safe position", command=self.moveToSafe)
+        moveToSafeBtn = ttk.Button(self, text="move arm to safe position", command=self.moveToSafe)
         grid(moveToSafeBtn, 2, 0, 5, 5, sticky='ew')
         moveToSafeBtn["state"] = "disabled"
 
@@ -366,19 +368,19 @@ class CalibrationMenu(ttk.Frame):
         self.buttons.append(self.calibArmBtn)
 
         stageCal = self.StageCalibration(self, self.buttons)
-        stageCal.grid(row=1, column=0, rowspan=3,padx=5, pady=5, sticky='nsew')
+        stageCal.grid(row=1, column=0, rowspan=1,padx=5, pady=5, sticky='nsew')
 
         printDrop = self.PrintDropTest(self, self.buttons)
-        printDrop.grid(row=0, column=1, rowspan=2, padx=5, pady=5, sticky='nsew')
+        printDrop.grid(row=0, column=1, rowspan=3, padx=5, pady=5, sticky='nsew')
 
         getSample = self.ManualGetSample(self, self.buttons)
-        getSample.grid(row=5, column=0, rowspan=5, sticky='nsew', padx=5, pady=5)
+        getSample.grid(row=3, column=0, rowspan=1, sticky='nsew', padx=5, pady=5)
   
         pressureCal = self.PressureCalibration(self, self.buttons)
-        pressureCal.grid(row=4, column=1, rowspan=2, sticky='nsew', padx=5, pady=5)
+        pressureCal.grid(row=2, column=0, rowspan=1, sticky='nsew', padx=5, pady=5)
 
         armPos = self.ArmPositions(self, self.buttons)
-        armPos.grid(row=7, column=1, sticky='nsew')
+        armPos.grid(row=3, column=1, sticky='nsew')
 
         for item in self.buttons: item["state"] = "disabled" if CALIB_DICT["arm"].cget('text') != f"arm: {CALIBRATED}" else "normal"
         self.calibArmBtn["state"] = "normal"
@@ -397,7 +399,6 @@ class CalibrationMenu(ttk.Frame):
             self.buttons.append(self.calibArmBtn)
             STARTUP_DISABLED_BUTTONS.extend(ARM_ENABLES)
             for item in self.buttons: item["state"] = "normal"
-            # moveToSafeBtn["state"] = "normal"
 
         driver.calibrateZArm(cb)
 
@@ -406,29 +407,98 @@ class CalibrationMenu(ttk.Frame):
             # TODO: somehow need to load these from a file to fill entries
             # or a button that pops up a window that will list them out
             ttk.LabelFrame.__init__(self, parent, text="Save arm Positions (mm)")
-            description = ttk.Label(self, text="Positions of arm, measured in mm from the top of the \n motor mount to the top limit switch's lever")
+            description = ttk.Label(self, text=" Positions of arm, measured in mm from the top of the \n motor mount to the top limit switch's lever")
             description.grid(row=0, column=0, columnspan=3, sticky='nsew')
+
+            self.calibButtons = calibButtons
 
             # grid(description, 0, 0, 5, 5)
             # TODO: should this also allow you to move the arm around??????????
             self.upEnt = ttk.Entry(self)
-            saveUpBtn = ttk.Button(self, text="save 'safe' position")
+            saveUpBtn = ttk.Button(self, text="save 'safe' position", command=self.saveSafe)
             grid(self.upEnt, 1, 0, 5, 5)
             grid(saveUpBtn, 1, 1, 5, 5)
 
             self.chipEnt = ttk.Entry(self)
-            saveChipBtn = ttk.Button(self, text="save 'above chip' position")
+            saveChipBtn = ttk.Button(self, text="save 'above chip' position", command=self.saveChip)
             grid(self.chipEnt, 2, 0, 5, 5)
             grid(saveChipBtn, 2, 1, 5, 5)
 
             self.wellEnt = ttk.Entry(self)
-            saveWellBtn = ttk.Button(self, text="save 'in well' position")
+            saveWellBtn = ttk.Button(self, text="save 'in well' position", command=self.saveWell)
             grid(self.wellEnt, 3, 0, 5, 5)
             grid(saveWellBtn, 3, 1, 5, 5)
 
+            moveMMFrame = ttk.LabelFrame(self, text="move to absolute position (mm)")
+            # entry. go button
+            self.mmEnt = ttk.Entry(moveMMFrame)
+            self.mmEnt.insert(0, "0")
+            grid(self.mmEnt, 0, 0, 0, 0)
+            goMMBtn = ttk.Button(moveMMFrame, text="move to absolute position (mm)", command=self.moveToMM)
+            grid(goMMBtn, 0, 1, 0, 0)
+            moveMMFrame.grid(row=4, column=0, columnspan=2, sticky='nsew')
+
+            showSavedBtn = ttk.Button(self, text="show saved positions", command=self.showSavedPositions)
+            showSavedBtn.grid(row=5, column=0, columnspan=2, sticky='nsew')
+
+            showCurrentBtn = ttk.Button(self, text="show current position of arm", command=self.showCurrentPosition)
+            showCurrentBtn.grid(row=6, column=0, columnspan=2, sticky='nsew')
+
             # TODO: these buttons don't actually do anything right now, need to implement them later
 
-            for itm in self.winfo_children(): calibButtons.append(itm)
+            calibButtons.extend([self.upEnt, saveUpBtn, self.chipEnt, saveChipBtn, self.wellEnt, saveWellBtn, self.mmEnt, goMMBtn, showSavedBtn, showCurrentBtn])
+
+        def saveSafe(self):
+            pos = self.upEnt.get()
+            try:
+                pos = float(pos)
+                driver.saveSafeZPosition(pos)
+            except Exception as e:
+                messagebox.showerror(title="Error saving value", message=str(e))
+
+        def saveChip(self):
+            pos = self.chipEnt.get()
+            try:
+                pos = float(pos)
+                driver.saveChipZPosition(pos)
+            except Exception as e:
+                messagebox.showerror(title="Error saving value", message=str(e))
+        
+        def saveWell(self):
+            pos = self.wellEnt.get()
+            try:
+                pos = float(pos)
+                driver.saveWellZPosition(pos)
+            except Exception as e:
+                messagebox.showerror(title="Error saving value", message=str(e))
+            
+        def moveToMM(self):
+            pos = self.mmEnt.get()
+
+            def cb():
+                # TODO
+                interruptBtn["state"] = "disabled"
+                for itm in self.calibButtons: itm["state"] = "normal"
+            try:
+                
+                pos = float(pos)
+
+                interruptBtn["state"] = "normal"
+                for itm in self.calibButtons: itm["state"] = "disabled"
+                driver.moveToZAbsoluteInUM(pos * 1000, cb)
+            except Exception as e:
+                messagebox.showerror(title="Error", message=str(e))
+
+        def showSavedPositions(self):
+            upPos = (driver.microscope.arm.zUpPos * driver.microscope.arm.zmotor.stepper.distPerStep) / 1000
+            chipPos = (driver.microscope.arm.zChannelPos * driver.microscope.arm.zmotor.stepper.distPerStep) / 1000
+            wellPos = (driver.microscope.arm.zWellPos * driver.microscope.arm.zmotor.stepper.distPerStep) / 1000
+
+            messagebox.showinfo(title="Saved Positions", message=f"safe: {upPos}mm \nabove chip: {chipPos}mm \nin well: {wellPos}mm")
+
+        def showCurrentPosition(self):
+            pos = driver.microscope.arm.zmotor.getZPosInUM() / 1000
+            messagebox.showinfo(title="Current Motor Position", message=f"{pos}")
 
     class StageCalibration(ttk.LabelFrame):
         def __init__(self, parent, calibButtons):
@@ -480,24 +550,36 @@ class CalibrationMenu(ttk.Frame):
             grid(inPLab, 0, 0, 5, 0)
             grid(self.inPEnt, 0, 1, 5, 0)
 
+            inPDurLab = ttk.Label(self.pressureFrame, text="# of seconds to apply\nin pressure for")
+            self.inPSecEnt = ttk.Entry(self.pressureFrame)
+            self.inPSecEnt.insert(0, "1") # has to match default value in pressure.py
+            grid(inPDurLab, 1, 0, 5, 5)
+            grid(self.inPSecEnt, 1, 1, 5, 0)
+
             eqPLab = ttk.Label(self.pressureFrame, text="Equilibrium pressure")
             self.eqPEnt = ttk.Entry(self.pressureFrame)
             self.eqPEnt.insert(0, "0")
-            grid(eqPLab, 1, 0, 5, 0)
-            grid(self.eqPEnt, 1, 1, 5, 0)
+            grid(eqPLab, 2, 0, 5, 0)
+            grid(self.eqPEnt, 2, 1, 5, 0)
 
             outPLab = ttk.Label(self.pressureFrame, text="Out pressure")
             self.outPEnt = ttk.Entry(self.pressureFrame)
             self.outPEnt.insert(0, "80.0")
-            grid(outPLab, 2, 0, 5, 0)
-            grid(self.outPEnt, 2, 1, 5, 0)
+            grid(outPLab, 3, 0, 5, 0)
+            grid(self.outPEnt, 3, 1, 5, 0)
+
+            outPDurLab = ttk.Label(self.pressureFrame, text="# of seconds to apply\nout pressure for")
+            self.outPSecEnt = ttk.Entry(self.pressureFrame)
+            self.outPSecEnt.insert(0, "3") # has to match default value in pressure.py
+            grid(outPDurLab, 4, 0, 5, 5)
+            grid(self.outPSecEnt, 4, 1, 5, 0)
 
             saveVals = ttk.Button(self.pressureFrame, text="Save pressure values", command=self.savePressures)
-            saveVals.grid(row=3, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
+            saveVals.grid(row=5, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
 
             grid(self.pressureFrame, 1, 0, 5, 5)
 
-            calibButtons.extend([self.calOB1, self.inPEnt, self.eqPEnt, self.outPEnt, saveVals])
+            calibButtons.extend([self.calOB1, self.inPEnt, self.eqPEnt, self.outPEnt, saveVals, self.outPSecEnt, self.inPSecEnt])
 
         def calibOB1(self):
             res = messagebox.askokcancel(title="recalibrate OB1", message="Are you sure you want to recalibrate the OB1? This takes about 3 minutes. Also, please don't run any other functions while calibration is happening")
@@ -509,12 +591,21 @@ class CalibrationMenu(ttk.Frame):
             inP = self.inPEnt.get()
             eqP = self.eqPEnt.get()
             outP = self.outPEnt.get()
+            inPS = self.inPSecEnt.get()
+            outPS = self.outPSecEnt.get()
             try:
                 inP = float(inP)
                 eqP = float(eqP)
                 outP = float(outP)
+                inPS = float(inPS)
+                outPS = float(outPS)
+                if (outPS < 0 or inPS < 0): messagebox.showerror(title="bad time input", message="Please use a positive number for time") 
+                
                 driver.savePressures(inPressure=inP, eqPressure=eqP, outPressure=outP)
+                driver.microscope.printer.pressure.calibDurations(inPTime=inPS, outPTime=outPS) # TODO: add more functions to lower level classes if you want
+
                 CALIB_DICT["pressures"].config(text=f"pressures: {CALIBRATED}", background="#65d92b")
+
             except ValueError:
                 messagebox.showwarning(title="bad pressure input", message="please check your values")
 
@@ -631,6 +722,7 @@ class CalibrationMenu(ttk.Frame):
             self.columnconfigure(0, weight=1)
             self.calibButtons = calibButtons
 
+            # TODO: fill in instructions
             self.instructions = ttk.Label(self, text="TBD, just a static description of each button")
             grid(self.instructions, 0, 0, 5, 0)
 
@@ -1456,14 +1548,15 @@ def close_main():
     def closeCB(): x=3
     if (additional.camOpen):
         messagebox.showerror(title="Camera open", message="Please close the camera display before closing the main GUI. This is to prevent a bug.")
-    
-    if driver != None:
-        driver.close(closeCB)
-        print("driver closed")
     else:
-        closeCB()
 
-    root.destroy()
+        if driver != None:
+            driver.close(closeCB)
+            print("driver closed")
+        else:
+            closeCB()
+
+        root.destroy()
 
 root.protocol("WM_DELETE_WINDOW", close_main)
 

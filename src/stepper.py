@@ -109,7 +109,7 @@ class ZMotor:
 
         Example:
         ```
-        zm.moveToZInMM(-3000)
+        zm.moveToZInUM(-3000)
         ```
 
         :param dist: Distance (in um) from the top

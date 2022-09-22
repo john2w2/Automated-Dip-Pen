@@ -148,6 +148,41 @@ class MicroscopeDriver:
 
         self.microscope.calibPressureValues(inP=inPressure, eqP=eqPressure, outP=outPressure)
 
+    def saveSafeZPosition(self, mm: float):
+        """Saves mm as the distance from the top limit switch to 
+        a safe position of the arm
+
+        :param mm: Distance (in mm) from the top limit switch
+        :type mm: float
+        """
+
+        if mm > 0: raise ValueError("Distance must be negative. You cannot move above the top limit switch")
+        
+        self.microscope.arm.saveZUpPos(mm)
+
+    def saveChipZPosition(self, mm:float):
+        """Saves mm as the distance from the top limit switch to
+        the 'above chip' position
+
+        :param mm: Distance (in mm) from the top limit switch 
+        :type mm: float
+        """
+
+        if mm > 0: raise ValueError("Distance must be negative. You cannot move above the top limit switch")
+        self.microscope.arm.saveZChipPos(mm)
+
+    def saveWellZPosition(self, mm:float):
+        """Saves mm as the distance from the top limit switch to
+        the 'in well' position
+
+        :param mm: Distance (in mm) from the top limit switch 
+        :type mm: float
+        """
+
+        if mm > 0: raise ValueError("Distance must be negative. You cannot move above the top limit switch")
+        self.microscope.arm.saveZWellPos(mm)
+
+
     def saveEthanolWells(self, wells: list[str]):
         """Saves which wells contain cleaning solution
 
@@ -380,6 +415,26 @@ class MicroscopeDriver:
 
     def __moveToZRelInUM(self, um, cb):
         self.microscope.arm.zmotor.moveToZRelInUM(um)
+        cb()
+
+    def moveToZAbsoluteInUM(self, um, cb):
+        """_summary_
+
+        :param um: _description_
+        :type um: _type_
+        :param cb: _description_
+        :type cb: function
+        """
+        if (um > 0):
+            cb() 
+            raise ValueError("Position must be negative")
+            
+        t: Thread = Thread(target=self.__moveToZAbsoluteInUM, args=[um, cb])
+        self.currentThread = t
+        t.start()
+
+    def __moveToZAbsoluteInUM(self, um, cb):
+        self.microscope.arm.zmotor.moveToZInUM(um)
         cb()
 
     def moveToZInSteps(self, steps, cb):

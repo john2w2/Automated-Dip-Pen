@@ -11,6 +11,8 @@ class Pressure:
     self.inPressure = -80
     self.eqPressure = 0
     self.outPressure = 80
+    self.inTime = 1
+    self.outTime = 3
 
   def calibrate(self):
     self.pcontroller.calibrate(save=True)
@@ -20,15 +22,19 @@ class Pressure:
     self.eqPressure = eqPressure
     self.outPressure = outPressure
 
+  def calibDurations(self, inPTime: float, outPTime: float):
+    self.inTime = inPTime
+    self.outTime = outPTime
+
   def inThenHold(self):
     # TODO: don't hard-code channel as 4 (maybe)
     self.pcontroller.set_pressure(4, self.inPressure)
-    sleep(1)
+    sleep(self.inTime)
     self.pcontroller.set_pressure(4, self.eqPressure)
 
   def dispense(self):
     self.pcontroller.set_pressure(4, self.outPressure)
-    sleep(2)
+    sleep(self.outTime)
     self.pcontroller.set_pressure(4, self.eqPressure)
 
   def saveAndSetEq(self, eqP: float):
