@@ -179,6 +179,11 @@ class Stage:
         cmd = f"G,{dropLoc[0] - self.printerOffset[0]},{dropLoc[1] - self.printerOffset[1]}"
         self.writeRead(cmd, isMoveCmd=True)
 
+    def camToPrinter(self):
+        camPos = self.getStageXY()
+        cmd = f"G, {camPos[0] + self.printerOffset[0]},{camPos[1] + self.printerOffset[1]}"
+        self.writeRead(cmd, isMoveCmd=True)
+
     def getStageX(self) -> int:
         """Get X position of the stage (in number of motor steps)
 

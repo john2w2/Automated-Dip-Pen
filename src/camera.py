@@ -12,15 +12,23 @@ class Camera:
         self.mmc = pymmcore.CMMCore()
         self.mmc.setDeviceAdapterSearchPaths([mm_dir])
         self.mmc.loadSystemConfiguration(os.path.join(mm_dir, "Coolsnap.cfg"))
+        self.mmc.setExposure(300)
         self.rMin = None
         self.rMax = None
 
     # return ndarray
-    def getImage(self, resizeImg=True, contrast=True):
+    def getImage(self, resizeImg=True, contrast=True, crop=True):
         self.mmc.snapImage()
         img = self.mmc.getImage()
-        if contrast: img = self.contrastImage(img)
+        if crop: img = self.cropToChannel(img)
         if resizeImg: img = (resize(img, (401, 601), preserve_range=True))
+        if contrast: img = self.contrastImage(img)
+        return img
+
+    def cropToChannel(self, img):
+        numR, numC = img.shape
+        img = img[numR // 2- 50: numR // 2 + 50, numC // 2 - 75: numC // 2 + 75]
+        print(img.shape)
         return img
 
     def contrastImage(self, img):
@@ -57,7 +65,7 @@ class Camera:
         # make cross same length along each axis
         crossLen = min(numRows // 5, numCols // 5)
         rv, cv, valv = line_aa( numRows // 2 - crossLen // 2 , numCols // 2, numRows // 2 + crossLen // 2 , numCols // 2)
-        rh, ch, valh = line_aa(numRows // 2, numCols // 2 - crossLen //2, numRows // 2, numCols // 2 + crossLen // 2)
+        rh, ch, valh = line_aa(numRows // 2, 0 , numRows // 2, numCols - 1)
 
         imCopy[rv,cv] = valv * 255
         imCopy[rh,ch] = valh * 255

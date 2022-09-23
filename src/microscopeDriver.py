@@ -476,6 +476,33 @@ class MicroscopeDriver:
         self.microscope.stage.moveDropToCam(dropLoc=dropLoc)
         cb()
 
+    def printTocam(self, cb):
+        """_summary_
+
+        :param cb: _description_
+        :type cb: function
+        """
+        t: Thread = Thread(target=self.__printToCam, args=[cb])
+        self.currentThread = t
+        t.start()
+
+    def __printToCam(self, cb):
+        if self.__checkInterrupt(cb): return
+
+        self.microscope.stage.camToPrinter()
+        if self.__checkInterrupt(cb): return
+
+        self.microscope.printer.printSingleDrop()
+        if self.__checkInterrupt(cb): return
+
+        dropLoc = self.microscope.getStageXY()
+        if self.__checkInterrupt(cb): return
+
+        self.microscope.stage.moveDropToCam(dropLoc=dropLoc)
+        if self.__checkInterrupt(cb): return
+
+        cb()
+
     def movePrinterOverWell(self, wellID: str, cb):
         """
         Moves the printer over the specified well. 
@@ -628,6 +655,53 @@ class MicroscopeDriver:
         self.microscope.moveArmToUp()
         if self.__checkInterrupt(cb): return
         self.microscope.moveChannelToCam(channelNum)
+        cb()
+
+    def focusChannelNoLift(self, channelNum: int, cb):
+        """Focuses the given channel on the microscope without
+        lifting the arm beforehand. 
+
+        :param channelNum: channel number to focus on camera
+        :type channelNum: int
+        :param cb: callback function that is called when focusing is done
+        :type cb: function
+        """
+        if not self.checkChannelsValid([channelNum]):
+            cb()
+            raise ValueError("channelnum isn't valid")
+        
+        channelNum = int(channelNum)
+
+        t: Thread = Thread(target=self.__focusChannelNoLift, args=[channelNum, cb])
+        self.currentThread = t
+        t.start()
+
+    def __focusChannelNoLift(self, channelNum: int, cb):
+        if self.__checkInterrupt(cb): return
+        self.microscope.moveChannelToCamNoLift(channelNum=channelNum)
+        cb()
+
+    def chanToPrinterNoLift(self, channelNum: int, cb):
+        """_summary_
+
+        :param channelNum: _description_
+        :type channelNum: int
+        :param cb: _description_
+        :type cb: function
+        """
+        if not self.checkChannelsValid([channelNum]):
+            cb()
+            raise ValueError("channelnum isn't valid")
+        
+        channelNum = int(channelNum)
+
+        t: Thread = Thread(target=self.__chanToPrinterNoLift, args=[channelNum, cb])
+        self.currentThread = t
+        t.start()
+
+    def __chanToPrinterNoLift(self, channelNum: int, cb):
+        if self.__checkInterrupt(cb): return
+        self.microscope.moveToChannelNoLift(channelNum=channelNum)
         cb()
 
     def printSampleToChannel(self, wellID: str, channelNum: int, cb):
@@ -815,28 +889,29 @@ class MicroscopeDriver:
         self.microscope.moveArmToUp()
         cb()
 
-    def printCurrTo40(self, cb):
-        """Prints the currently held sample to 40 channels, starting from the first channel
+    def printCurrToK(self, num, cb):
+        """Prints the currently held sample to num channels, starting from the first channel
         Assumes the printer head is already down. Does not move printer head back up
         :param cb: _description_
         :type cb: function
         """
-        t:Thread = Thread(target=self.__printCurrTo40, args=[cb])
+        t:Thread = Thread(target=self.__printCurrToK, args=[num, cb])
         self.currentThread = t
         t.start()
 
-    def __printCurrTo40(self, cb):
+    def __printCurrToK(self, num, cb):
         if self.__checkInterrupt(cb):return
 
         # self.microscope.moveArmToUp()
         # if self.__checkInterrupt(cb):return
 
-        for i in range(1, 41):
+        for i in range(1, num+1):
             self.microscope.moveToChannelNoLift(i)
             if self.__checkInterrupt(cb):return
             self.microscope.printSample(i, save=False)
             if self.__checkInterrupt(cb):return
 
+        self.microscope.moveChannelToCamNoLift(1)
         cb()
 
 

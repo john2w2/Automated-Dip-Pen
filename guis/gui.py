@@ -4,7 +4,7 @@ import tkinter as tk
 import sys
 sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
 
-from tkinter import ttk
+from tkinter import Button, ttk
 from tkinter import messagebox
 from time import sleep
 from threading import Thread
@@ -1301,74 +1301,102 @@ class AdditionalMenu(ttk.Frame):
         ttk.Frame.__init__(self, parent)
         # move arm in mm, which will allow floats. Also calibrate arm (move to top), move to absolute z position in steps. print pos to console
             # labelframe, entry, button
-        armFrame = ttk.LabelFrame(self, text="move arm (mm)")
-        self.armEnt = ttk.Entry(armFrame)
-        armBtn = ttk.Button(armFrame, text="move", command=self.moveArm)
-        aoBtn = ttk.Button(armFrame, text="calibrate origin", command=self.calibOrigin)
-        self.armSEnt = ttk.Entry(armFrame)
-        armSBtn = ttk.Button(armFrame, text="move to absolute (in steps)", command=self.moveInSteps)
-        stepbtn = ttk.Button(armFrame, text="output position to terminal", command=self.getZPos)
-        intBtn = ttk.Button(armFrame, text="interrupt movement", command=self.intteruptArm)
+        armFrame = ttk.LabelFrame(self, text="move arm")
+        for i in range(4): armFrame.rowconfigure(i, weight=1)
+        armFrame.columnconfigure(0, weight=1)
 
+        relMMFrame = ttk.LabelFrame(armFrame, text="relative arm move (mm)")
+        for i in range(2): relMMFrame.columnconfigure(i, weight=1)
+        self.armEnt = ttk.Entry(relMMFrame)
+        armBtn = ttk.Button(relMMFrame, text="move (relative, mm)", command=self.moveArm)
+
+        aoBtn = ttk.Button(armFrame, text="calibrate origin", command=self.calibOrigin)
+        
+        absFrame = ttk.LabelFrame(armFrame, text="absolute arm move")
+        for i in range(4): absFrame.rowconfigure(i, weight=1)
+        absFrame.columnconfigure(0, weight=1)
+
+        self.armSEnt = ttk.Entry(absFrame)
+        armSBtn = ttk.Button(absFrame, text="move to absolute (in steps)", command=self.moveInSteps)
+
+        self.armMEnt = ttk.Entry(absFrame)
+        armMBtn = ttk.Button(absFrame, text="move to absolute (in mm)", command=self.moveAbsMM)
+
+        stepbtn = ttk.Button(absFrame, text="Get current arm position", command=self.getZPos)
+        intBtn = ttk.Button(absFrame, text="interrupt arm movement", command=self.intteruptArm)
+        absFrame.grid(row=2, column=0, columnspan=2, sticky='nsew')
+
+        aoBtn.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
         grid(self.armEnt, 0, 0, 5, 5)
         grid(armBtn, 0, 1, 5, 5)
-        grid(aoBtn, 1, 0, 5, 5)
-        grid(self.armSEnt, 2, 0, 5, 5)
-        grid(armSBtn, 2, 1, 5, 5)
-        grid(stepbtn, 3, 0, 5, 5)
-        grid(stepbtn, 3, 0, 5, 5)
-        grid(intBtn, 3, 1, 5, 5)
+        relMMFrame.grid(row=1, column=0, columnspan=2, sticky='nsew')
+        grid(self.armSEnt, 0, 0, 5, 5)
+        grid(armSBtn, 0, 1, 5, 5)
+        grid(self.armMEnt, 1, 0, 5, 5)
+        grid(armMBtn, 1, 1, 5, 5)
+
+
+
+        stepbtn.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
+        intBtn.grid(row=3, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
         grid(armFrame,0, 0, 5, 5)
 
         # apply certain pressure for certain num of seconds
             # labelframe, entry, entry, button
         paFrame = ttk.LabelFrame(self, text="apply certain pressure for certain amount of time")
+        for i in range(2):
+            paFrame.columnconfigure(i, weight=1)
+            paFrame.rowconfigure(i, weight=1)
         palab = ttk.Label(paFrame, text="pressure (mbar)")
         self.paEnt = ttk.Entry(paFrame)
         secLab = ttk.Label(paFrame, text="seconds")
         applyPressureBtn = ttk.Button(paFrame, text="apply pressure", command=self.applyPressure)
         self.secEnt = ttk.Entry(paFrame)
 
-        grid(palab, 0, 0, 0, 0)
-        grid(self.paEnt, 0, 1, 0, 0)
-        grid(secLab, 1, 0, 0, 0)
-        grid(self.secEnt, 1, 1, 0, 0)
-        applyPressureBtn.grid(row=2, column=0, columnspan=2, sticky='nsew')
+        grid(palab, 0, 0, 5, 5)
+        grid(self.paEnt, 0, 1, 5, 5)
+        grid(secLab, 1, 0, 5, 5)
+        grid(self.secEnt, 1, 1, 5, 5)
+        applyPressureBtn.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
         grid(paFrame, 1,0,5,5)
 
         # trigger jetserver
             # labelframe, button
-        jFrame = ttk.LabelFrame(self, text="trigger jetserver")
-        jBtn = ttk.Button(jFrame, text="trigger")
-        grid(jFrame, 2, 0,5,5)
-        grid(jBtn, 0,0,5,5)
 
         # set pressure for undefined amount of time (equilibrium pressure, in, out)
             # labelframe, entry, button, stop button (set to zero)
-        self.steadyPFrame = ttk.LabelFrame(self, text="set steady pressure")
+        self.steadyPFrame = ttk.LabelFrame(self, text="set constant pressure (mbar)")
+        for i in range(2):
+            self.steadyPFrame.rowconfigure(i, weight=1)
+            self.steadyPFrame.columnconfigure(i, weight=1)
         self.steadyPent = ttk.Entry(self.steadyPFrame)
         self.steadyPBtn = ttk.Button(self.steadyPFrame, text="set this as pressure", command=self.setSteady)
         steadyStopBtn = ttk.Button(self.steadyPFrame, text="set pressure to 0", command=self.clearSteady)
         grid(self.steadyPFrame, 3, 0, 5,5)
         grid(self.steadyPent, 0,0,5,5)
         grid(self.steadyPBtn, 0,1,5,5)
-        grid(steadyStopBtn, 1,0,5,5)
+        steadyStopBtn.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
 
         # offset calibration menu
             # labelframe, print button, set button, goto button
             # stores self.printloc
         offFrame = ttk.LabelFrame(self, text="offset calibration")
+        for i in range(2): 
+            offFrame.rowconfigure(i, weight=1)
+            offFrame.columnconfigure(i, weight=1)
         self.printLoc = (None, None)
         printBtn = ttk.Button(offFrame, text="print drop, save location", command=self.triggerJet)
         saveOffBtn = ttk.Button(offFrame, text="save offset (set point)", command=self.setPnt)
         gotoBtn = ttk.Button(offFrame, text="show drop on cam", command=self.dropOnCam) # offset must be good first
         grid(offFrame, 4, 0, 5,5)
         grid(printBtn, 0,0,5,5)
-        grid(saveOffBtn,1,0,5,5)
-        grid(gotoBtn, 2,0,5,5)
+        grid(gotoBtn, 1,0,5,5)
+        saveOffBtn.grid(row=0, column=1, rowspan=2, padx=5, pady=5, sticky='nsew')
 
         stageFrame = ttk.LabelFrame(self, text="stage movement")
-        saveFirstBtn = ttk.Button(stageFrame, text="save position as first chan on camera", command=self.saveFirstChan)
+        for i in range(3): stageFrame.rowconfigure(i, weight=1)
+        for i in range(2): stageFrame.columnconfigure(i, weight=1)
+        saveFirstBtn = ttk.Button(stageFrame, text="save position as first channel on camera", command=self.saveFirstChan)
         self.chanToCamEnt = ttk.Entry(stageFrame)
         chanToCamBtn = ttk.Button(stageFrame, text="show channel on camera", command=self.chanToCam)
         self.chanToPEnt = ttk.Entry(stageFrame)
@@ -1376,28 +1404,61 @@ class AdditionalMenu(ttk.Frame):
 
         grid(stageFrame, 5, 0, 5, 5)
         grid(saveFirstBtn, 0, 0, 5, 5)
+        saveFirstBtn.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
         grid(self.chanToCamEnt, 1, 0, 5, 5)
         grid(chanToCamBtn, 1, 1, 5, 5)
         grid(self.chanToPEnt, 2, 0, 5, 5)
         grid(chanToPBtn, 2, 1, 5, 5)    
 
-        to40Frame = ttk.LabelFrame(self, text="print to 40 channels")
-        to40Btn = ttk.Button(to40Frame, text="print to 40", command=self.printToForty)
-        grid(to40Btn, 0, 0, 5, 5)    
-        grid(to40Frame, 6, 0, 5, 5)
+        toKFrame = ttk.LabelFrame(self, text="print to at most 40 channels, starting from the first channel")
+        toKFrame.rowconfigure(0, weight=1)
+        toKFrame.columnconfigure(0, weight=1)
+        self.toKEnt = ttk.Entry(toKFrame)
+        toKBtn = ttk.Button(toKFrame, text="start printing", command=self.printToK)
+        grid(self.toKEnt, 0, 0, 5, 5)
+        grid(toKBtn, 0, 1, 5, 5)
+        grid(toKFrame, 6, 0, 5, 5)
 
-        self.buttons = [self.armEnt, armBtn, aoBtn, self.armSEnt, armSBtn, stepbtn, applyPressureBtn, jBtn, steadyStopBtn, printBtn, saveOffBtn, gotoBtn, saveFirstBtn, chanToCamBtn, chanToPBtn, to40Btn, self.steadyPBtn]
+        toCamBtn = ttk.Button(self, text="print to current camera position", command=self.printToCam)
 
-    def printToForty(self):
-        def fakecb(): print("done printing to 40")
+        grid(toCamBtn, 7, 0, 5, 5)
+
+        self.buttons = [self.armEnt, armBtn, aoBtn, self.armSEnt, armSBtn, stepbtn, applyPressureBtn, 
+                        steadyStopBtn, printBtn, saveOffBtn, gotoBtn, saveFirstBtn, chanToCamBtn, 
+                        chanToPBtn, toKBtn, self.steadyPBtn, self.armMEnt, armMBtn]
+
+    def printToK(self):
+        num = self.toKEnt.get()
         try:
-            # def cb():
-            #     for btn in self.buttons: btn["state"] = "normal"
-                
-            # for btn in self.button: btn["state"] = "disabled"
-            driver.printCurrTo40(fakecb)
+            num = int(num)
+            def cb():
+                for btn in self.buttons: btn["state"] = "normal"
+            
+            if (num < 0 or num > driver.microscope.chip.numChan):
+                messagebox.showerror(title="bad number of channels", message="too many or too few channels")
+                return
+
+            for btn in self.buttons: btn["state"] = "disabled"
+            driver.printCurrToK(num, cb)
         except Exception as e:
             messagebox.showerror(title="something went wrong", message=str(e))
+
+    def printToCam(self):
+        def cb(): 
+            for btn in self.buttons: btn["state"] = "normal"
+        for btn in self.buttons: btn["state"] = "disabled"
+        driver.printToCam(cb)
+
+    def moveAbsMM(self):
+        mm = self.armMEnt.get()
+        try:
+            mm = float(mm)
+            def cb():
+                for btn in self.buttons: btn["state"] = "normal"
+            for btn in self.buttons: btn["state"] = "disabled"
+            driver.moveToZAbsoluteInUM(mm * 1000, cb)
+        except Exception as e:
+            messagebox.showerror(title="error", message=str(e))
 
     def intteruptArm(self):
         def fakecb():print("interrupting complete")
@@ -1416,10 +1477,13 @@ class AdditionalMenu(ttk.Frame):
             print(e)
 
     def calibOrigin(self):
-        def cb():
-            for btn in self.buttons: btn["state"] = "normal"      
-        for btn in self.buttons: btn["state"] = "disabled"            
-        driver.calibrateZArm(cb)
+        try:
+            def cb():
+                for btn in self.buttons: btn["state"] = "normal"      
+            for btn in self.buttons: btn["state"] = "disabled"            
+            driver.calibrateZArm(cb)
+        except:
+            messagebox.showerror(title="error", message="please connect to the device first")
 
     def moveInSteps(self):
         steps = self.armSEnt.get()
@@ -1434,8 +1498,10 @@ class AdditionalMenu(ttk.Frame):
             print(e)
     
     def getZPos(self):
-        print(f"steps: {driver.microscope.arm.zmotor.getZPosInSteps()}")
         inum = driver.microscope.arm.zmotor.getZPosInUM()
+        mess = f"steps: {driver.microscope.arm.zmotor.getZPosInSteps()}\num: {inum}\nmm: {inum / 1000}"
+        messagebox.showinfo(title="Arm position", message=mess)
+        print(f"steps: {driver.microscope.arm.zmotor.getZPosInSteps()}")
         print(f"um: {inum}")
         print(f"mm: {inum / 1000}")
 
@@ -1488,7 +1554,7 @@ class AdditionalMenu(ttk.Frame):
                 for btn in self.buttons: btn["state"] = "normal"    
         
             for btn in self.buttons: btn["state"] = "disabled"    
-            driver.focusChannel(chan, cb)
+            driver.focusChannelNoLift(chan, cb)
         except Exception as e:
             print(e)
     
@@ -1500,7 +1566,7 @@ class AdditionalMenu(ttk.Frame):
                 for btn in self.buttons: btn["state"] = "normal"    
         
             for btn in self.buttons: btn["state"] = "disabled"    
-            driver.movePrinterOverChannel(chan, cb)
+            driver.chanToPrinterNoLift(chan, cb)
         except Exception as e:
             print(e)
 

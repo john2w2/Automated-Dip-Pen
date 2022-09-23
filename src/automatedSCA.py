@@ -94,6 +94,16 @@ class AutomatedSCA:
         self.arm.moveZUpPos()
         self.stage.moveChannelToCam(channelNum)
 
+    def moveChannelToCamNoLift(self, channelNum: int):
+        """
+        Moves the stage such that the camera displays the requested channel.
+        Does not lift the arm before moving
+
+        :param channelNum: 1-indexed number of channel to display
+        :type channelNum: int
+        """
+        self.stage.moveChannelToCam(channelNum)
+
     def movePrinterIntoWell(self):
         """
         Moves the printer head down into well pos, assuming the stage

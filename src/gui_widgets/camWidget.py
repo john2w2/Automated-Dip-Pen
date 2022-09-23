@@ -22,6 +22,7 @@ class CamWidget(tk.Frame):
         self.canvas.pack()
         self.stopCamThreads = False # flag for ending threads
         self.drawCross = True # whether or not to draw cross on camera
+        self.zoomIn = False
         buttonFrame = tk.Frame(self)
         self.cambut = ttk.Button(buttonFrame,text="start camera feed", command = self.camStuffThread, style="Accent.TButton")
         self.cambut.grid(row=0, column=0, padx=5, pady=5)
@@ -33,10 +34,16 @@ class CamWidget(tk.Frame):
         toggleBut = ttk.Button(buttonFrame, text="toggle +", command=self.toggleCross)
         toggleBut.grid(row=0, column=2, padx=5, pady=5)
 
+        zoomBut = ttk.Button(buttonFrame, text="toggle zoom", command=self.toggleZoom)
+        zoomBut.grid(row=0, column=3, padx=5, pady=5)
+
         buttonFrame.pack()
 
     def toggleCross(self):
         self.drawCross = not self.drawCross
+
+    def toggleZoom(self):
+        self.zoomIn = not self.zoomIn
 
     def stopcam(self):
         self.stopbut["state"] = "disabled"
@@ -50,20 +57,27 @@ class CamWidget(tk.Frame):
 
     def camStuff(self):
         self.cambut["state"] = "disabled"
+        i = 0
         try:
             cam = Camera()
             self.stopbut["state"] = "normal"
             while not self.stopCamThreads:
-                img = cam.getImage()
-                img = resize(img, (401, 601), preserve_range=True)
+                img = cam.getImage(resizeImg=True, contrast=True, crop=self.zoomIn)
+                # img = resize(img, (401, 601), preserve_range=True)
                 if self.drawCross:
                     img = cam.drawCross(img)
+                
+                # img = Image.fromarray(img, mode="I;16")
                 img = Image.fromarray(img)
                 # could have been interrupted after check
                 # program seems to run forever if root is closed and we try to run the 2 lines after this if statement
                 if self.stopCamThreads: break
+                # img = img.convert("L")
+            
                 imgtk = ImageTk.PhotoImage(image=img)
                 self.canvas.create_image(1, 1, anchor="nw", image=imgtk)
+                i = i+1
+
             del cam # TODO: maybe have a close function for camera
             print("camera stuff is donezo")
         except Exception as err:
