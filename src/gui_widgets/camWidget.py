@@ -62,8 +62,7 @@ class CamWidget(tk.Frame):
             cam = Camera()
             self.stopbut["state"] = "normal"
             while not self.stopCamThreads:
-                img = cam.getImage(resizeImg=True, contrast=True, crop=self.zoomIn)
-                # img = resize(img, (401, 601), preserve_range=True)
+                img = cam.getImage(resizeImg=True, crop=self.zoomIn, scale=True)
                 if self.drawCross:
                     img = cam.drawCross(img)
                 
@@ -72,7 +71,6 @@ class CamWidget(tk.Frame):
                 # could have been interrupted after check
                 # program seems to run forever if root is closed and we try to run the 2 lines after this if statement
                 if self.stopCamThreads: break
-                # img = img.convert("L")
             
                 imgtk = ImageTk.PhotoImage(image=img)
                 self.canvas.create_image(1, 1, anchor="nw", image=imgtk)

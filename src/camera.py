@@ -2,6 +2,7 @@ from audioop import cross
 import pymmcore
 import os.path
 import numpy as np
+import math
 
 from skimage.transform import resize # necessary if we want to resize without opencv
 from skimage.draw import line_aa # can draw lines with this instead of cv
@@ -15,14 +16,15 @@ class Camera:
         self.mmc.setExposure(300)
         self.rMin = None
         self.rMax = None
+        self.gain = 20 # default gain of 4 (max) TODO: change from 20
 
     # return ndarray
-    def getImage(self, resizeImg=True, contrast=True, crop=True):
+    def getImage(self, resizeImg=True, crop=False, scale=True):
         self.mmc.snapImage()
         img = self.mmc.getImage()
-        if crop: img = self.cropToChannel(img)
+        if crop: img = self.cropToChannel(img) # crop before resizing so quality remains good(ish)
         if resizeImg: img = (resize(img, (401, 601), preserve_range=True))
-        if contrast: img = self.contrastImage(img)
+        if scale: img = self.scaleImage(img)
         return img
 
     def cropToChannel(self, img):
@@ -30,24 +32,37 @@ class Camera:
         img = img[numR // 2- 50: numR // 2 + 50, numC // 2 - 75: numC // 2 + 75]
         return img
 
-    def contrastImage(self, img):
-        """Increase constrast in image
+    def setExposure(self, exposure: int):
+        """Sets the camera exposure (in ms)
 
-        :param img: Image taken by camera
-        :type img: ndarray
-        :return: Processed image
-        :rtype: ndarray
+        :param exposure: exposure (ms)
+        :type exposure: int
         """
-        if (self.rMin == None):
-            self.rMin = np.min(img)
-            self.rMax = np.max(img)
-        else:
-            # compute rolling average of min (auto brightness effect)
-            # this is bad, but not sure how to handle consistently making sure image is bright quickly
-            # tweak scalars to change how quickly brightness adjusts (must sum to 1.0)
-            self.rMin = self.rMin * 0.9 + 0.1 * np.min(img)
-            self.rMax = self.rMax * 0.9 + 0.1 * np.max(img)
-        return np.clip((((img - self.rMin) / (self.rMax - self.rMin)) * 255).astype(np.uint8), 0, 255)
+
+        self.mmc.setExposure(exposure)
+
+    def setGain(self, gain: float):
+        """Sets the gain of the camera
+
+        :param gain: desired gain. Must be in the interval [0.5, 4]
+        :type gain: float
+        """
+
+        if gain < 0.5 or gain > 4:
+            raise ValueError("Desired gain does not fall between 0.5 and 4")
+
+        self.gain = gain
+    
+    def scaleImage(self, img):
+        """Scales the iamge by previously set gain (default to 4)
+        """
+        gainFactor = math.ceil(np.log10(self.gain) / np.log10(2))
+        img = np.clip(img, 0, 2**(16-gainFactor)-1)
+        img = img * self.gain
+
+        # convert to 8-bit integer because that's what ImageTk wants for some reason
+        img = np.clip((((img) / (2**16-1)) * 255).astype(np.uint8), 0, 255)
+        return img
 
     def drawCross(self, img) -> np.array:
         """Draws a cross on a copy img, not modifying the original image 
