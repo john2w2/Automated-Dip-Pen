@@ -1,3 +1,4 @@
+from multiprocessing.sharedctypes import Value
 import tkinter as tk
 import sys
 sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
@@ -37,7 +38,49 @@ class CamWidget(tk.Frame):
         zoomBut = ttk.Button(buttonFrame, text="toggle zoom", command=self.toggleZoom)
         zoomBut.grid(row=0, column=3, padx=5, pady=5)
 
+        # gain entry, gain button
+        # exposure entry, exposure button
+        exposureFrame = ttk.LabelFrame(buttonFrame, text="set exposure (ms)")
+        self.expEnt = ttk.Entry(exposureFrame)
+        self.expEnt.insert(0, "300")
+        expBtn = ttk.Button(exposureFrame, text="set exposure", command=self.setExposure)
+        self.expEnt.grid(row = 0, column=0)
+        expBtn.grid(row=0, column=1)
+        exposureFrame.grid(row=1, column=0)
+
+        gainFrame = ttk.LabelFrame(buttonFrame, text="set gain (brightness factor)")
+        self.gainEnt= ttk.Entry(gainFrame)
+        self.gainEnt.insert(0, "20")
+        gainBtn = ttk.Button(gainFrame, text="set gain", command=self.setGain)
+        self.gainEnt.grid(row = 0, column=0)
+        gainBtn.grid(row=0, column=1)
+        gainFrame.grid(row=1, column=1)
+
         buttonFrame.pack()
+
+        self.cam = None
+
+    def setGain(self):
+        gain = self.gainEnt.get()
+        try:
+            gain = float(gain)
+            if gain < 0.5:
+                raise ValueError("gain must be greater than 0.5")
+
+            self.cam.gain = gain
+        except Exception as e:
+            messagebox.showerror(title="bad gain input", message="Gain must be greater than 0.5")
+
+    def setExposure(self):
+        exp = self.expEnt.get()
+        try:
+            exp = int(exp)
+            if (exp < 0):
+                raise ValueError("exposure must be >= 1")
+            self.cam.setExposure(exp)
+        except Exception as e:
+            messagebox.showerror(title="bad exposure input", message="please ensure you entered an integer >=1")
+            
 
     def toggleCross(self):
         self.drawCross = not self.drawCross
@@ -57,14 +100,13 @@ class CamWidget(tk.Frame):
 
     def camStuff(self):
         self.cambut["state"] = "disabled"
-        i = 0
         try:
-            cam = Camera()
+            self.cam = Camera()
             self.stopbut["state"] = "normal"
             while not self.stopCamThreads:
-                img = cam.getImage(resizeImg=True, crop=self.zoomIn, scale=True)
+                img = self.cam.getImage(resizeImg=True, crop=self.zoomIn, scale=True)
                 if self.drawCross:
-                    img = cam.drawCross(img)
+                    img = self.cam.drawCross(img)
                 
                 # img = Image.fromarray(img, mode="I;16")
                 img = Image.fromarray(img)
@@ -74,9 +116,8 @@ class CamWidget(tk.Frame):
             
                 imgtk = ImageTk.PhotoImage(image=img)
                 self.canvas.create_image(1, 1, anchor="nw", image=imgtk)
-                i = i+1
 
-            del cam # TODO: maybe have a close function for camera
+            self.cam = None # TODO: maybe have a close function for camera
             print("camera stuff is donezo")
         except Exception as err:
             print(err)
