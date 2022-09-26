@@ -33,7 +33,6 @@ class MicroscopeDriver:
         :type cb: function
         """
 
-        # TODO: startup needs to be threaded (from GUI) since it calls calibrateArm (no it doesn't)
         try:
             self.microscope: AutomatedSCA = AutomatedSCA(
                 priorPort=priorPort, arduinoPort=arduinoPort,
@@ -476,17 +475,17 @@ class MicroscopeDriver:
         self.microscope.stage.moveDropToCam(dropLoc=dropLoc)
         cb()
 
-    def printTocam(self, cb):
+    def printToCam(self, ref, cb):
         """_summary_
 
         :param cb: _description_
         :type cb: function
         """
-        t: Thread = Thread(target=self.__printToCam, args=[cb])
+        t: Thread = Thread(target=self.__printToCam, args=[ref, cb])
         self.currentThread = t
         t.start()
 
-    def __printToCam(self, cb):
+    def __printToCam(self, ref, cb):
         if self.__checkInterrupt(cb): return
 
         self.microscope.stage.camToPrinter()
@@ -496,6 +495,7 @@ class MicroscopeDriver:
         if self.__checkInterrupt(cb): return
 
         dropLoc = self.microscope.getStageXY()
+        ref.append(dropLoc)
         if self.__checkInterrupt(cb): return
 
         self.microscope.stage.moveDropToCam(dropLoc=dropLoc)

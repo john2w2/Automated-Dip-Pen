@@ -1,10 +1,8 @@
-from cgitb import text
-from email import message
 import tkinter as tk
 import sys
 sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
 
-from tkinter import Button, ttk
+from tkinter import ttk
 from tkinter import messagebox
 from time import sleep
 from threading import Thread
@@ -1372,10 +1370,12 @@ class AdditionalMenu(ttk.Frame):
         self.steadyPent = ttk.Entry(self.steadyPFrame)
         self.steadyPBtn = ttk.Button(self.steadyPFrame, text="set this as pressure", command=self.setSteady)
         steadyStopBtn = ttk.Button(self.steadyPFrame, text="set pressure to 0", command=self.clearSteady)
+        getPBtn = ttk.Button(self.steadyPFrame, text="get current pressure", command=self.getPressure)
         grid(self.steadyPFrame, 3, 0, 5,5)
         grid(self.steadyPent, 0,0,5,5)
         grid(self.steadyPBtn, 0,1,5,5)
         steadyStopBtn.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
+        getPBtn.grid(row=2, column=0, columnspan=2, pady=5, padx=5, sticky='nsew')
 
         # offset calibration menu
             # labelframe, print button, set button, goto button
@@ -1425,7 +1425,11 @@ class AdditionalMenu(ttk.Frame):
 
         self.buttons = [self.armEnt, armBtn, aoBtn, self.armSEnt, armSBtn, stepbtn, applyPressureBtn, 
                         steadyStopBtn, printBtn, saveOffBtn, gotoBtn, saveFirstBtn, chanToCamBtn, 
-                        chanToPBtn, toKBtn, self.steadyPBtn, self.armMEnt, armMBtn]
+                        chanToPBtn, toKBtn, self.steadyPBtn, self.armMEnt, armMBtn, toCamBtn]
+
+    def getPressure(self):
+        pres = driver.microscope.printer.pressure.pcontroller.get_pressure(4)
+        messagebox.showinfo(title="Current pressure on channel 4", message=f"{pres} mbar")
 
     def printToK(self):
         num = self.toKEnt.get()
@@ -1447,7 +1451,12 @@ class AdditionalMenu(ttk.Frame):
         def cb(): 
             for btn in self.buttons: btn["state"] = "normal"
         for btn in self.buttons: btn["state"] = "disabled"
-        driver.printToCam(cb)
+        ref = []
+        driver.printToCam(ref, cb)
+
+        # this enables saving offset from the 'print to current camera position' function
+        if (len(ref) == 1):
+            self.printLoc = ref[0]
 
     def moveAbsMM(self):
         mm = self.armMEnt.get()
@@ -1499,10 +1508,9 @@ class AdditionalMenu(ttk.Frame):
     
     def getZPos(self):
         inum = driver.microscope.arm.zmotor.getZPosInUM()
-        mess = f"steps: {driver.microscope.arm.zmotor.getZPosInSteps()}\num: {inum}\nmm: {inum / 1000}"
+        mess = f"steps: {driver.microscope.arm.zmotor.getZPosInSteps()}\nmm: {inum / 1000}"
         messagebox.showinfo(title="Arm position", message=mess)
         print(f"steps: {driver.microscope.arm.zmotor.getZPosInSteps()}")
-        print(f"um: {inum}")
         print(f"mm: {inum / 1000}")
 
     def applyPressure(self):

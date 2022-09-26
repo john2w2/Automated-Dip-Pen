@@ -28,7 +28,6 @@ class Camera:
     def cropToChannel(self, img):
         numR, numC = img.shape
         img = img[numR // 2- 50: numR // 2 + 50, numC // 2 - 75: numC // 2 + 75]
-        print(img.shape)
         return img
 
     def contrastImage(self, img):
