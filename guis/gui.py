@@ -78,7 +78,6 @@ class HighLevel(ttk.LabelFrame):
             self.startupMenu = tk.Toplevel(root)
             self.startupMenu.title("Startup Menu")
 
-            # TODO: widget goes here
             grid(self.StartupMenu(self.startupMenu), 0,0,0,0)
 
             self.startupMenu.protocol("WM_DELETE_WINDOW", on_closing)
@@ -88,7 +87,6 @@ class HighLevel(ttk.LabelFrame):
 
     def interrupt(self):
         """ sends an interrupt command to the microscope driver"""
-        # TODO: call driver interrupt here
         def cb():
             moveToSafeBtn["state"] = "normal"
 
@@ -99,7 +97,6 @@ class HighLevel(ttk.LabelFrame):
         driver.resetToSafeState()
 
     class StartupMenu(ttk.Frame):
-        # TODO: make this a pop-out window
         def __init__(self, parent):
             ttk.LabelFrame.__init__(self, parent)
             for i in range(3):
@@ -254,9 +251,6 @@ class PrintEachToK(ttk.Labelframe):
 
         for child in self.winfo_children(): ARM_ENABLES.append(child)
 
-    #TODO: function to call printing, handling bad input
-    #TODO: some way to get selected from welLSelect (some array stored in PrintEachToK, pass to wellselect)
-
     def openWellSelectMenu(self):
         def on_closing():
                 self.wellSelectMenu.destroy()
@@ -359,8 +353,6 @@ class CalibrationMenu(ttk.Frame):
         self.columnconfigure(1, weight=1)
         self.buttons = []
 
-        #TODO: figure out how to make calib button not obscenely large
-        # TODO: allow user to input all 3 stage positions (measured in mm from bottom of limit switch)
         self.calibArmBtn = ttk.Button(self, text="calibrate arm Z axis\n(move to top limit switch)", command=self.calibArm)
         self.calibArmBtn.grid(row=0, column=0, rowspan=1, sticky='nsew', padx=5, pady=5)
         self.buttons.append(self.calibArmBtn)
@@ -411,7 +403,6 @@ class CalibrationMenu(ttk.Frame):
             self.calibButtons = calibButtons
 
             # grid(description, 0, 0, 5, 5)
-            # TODO: should this also allow you to move the arm around??????????
             self.upEnt = ttk.Entry(self)
             saveUpBtn = ttk.Button(self, text="save 'safe' position", command=self.saveSafe)
             grid(self.upEnt, 1, 0, 5, 5)
@@ -441,8 +432,6 @@ class CalibrationMenu(ttk.Frame):
 
             showCurrentBtn = ttk.Button(self, text="show current position of arm", command=self.showCurrentPosition)
             showCurrentBtn.grid(row=6, column=0, columnspan=2, sticky='nsew')
-
-            # TODO: these buttons don't actually do anything right now, need to implement them later
 
             calibButtons.extend([self.upEnt, saveUpBtn, self.chipEnt, saveChipBtn, self.wellEnt, saveWellBtn, self.mmEnt, goMMBtn, showSavedBtn, showCurrentBtn])
 
@@ -474,7 +463,6 @@ class CalibrationMenu(ttk.Frame):
             pos = self.mmEnt.get()
 
             def cb():
-                # TODO
                 interruptBtn["state"] = "disabled"
                 for itm in self.calibButtons: itm["state"] = "normal"
             try:
@@ -1308,7 +1296,7 @@ class AdditionalMenu(ttk.Frame):
         self.armEnt = ttk.Entry(relMMFrame)
         armBtn = ttk.Button(relMMFrame, text="move (relative, mm)", command=self.moveArm)
 
-        aoBtn = ttk.Button(armFrame, text="calibrate origin", command=self.calibOrigin)
+        aoBtn = ttk.Button(armFrame, text="calibrate z-axis origin", command=self.calibOrigin)
         
         absFrame = ttk.LabelFrame(armFrame, text="absolute arm move")
         for i in range(4): absFrame.rowconfigure(i, weight=1)
@@ -1421,11 +1409,31 @@ class AdditionalMenu(ttk.Frame):
 
         toCamBtn = ttk.Button(self, text="print to current camera position", command=self.printToCam)
 
-        grid(toCamBtn, 7, 0, 5, 5)
+        grid(toCamBtn, 0, 1, 5, 5)
+
+        moveYFrame = ttk.LabelFrame(self, text="Move arm relatively along y-axis rod")
+        self.moveYEnt = ttk.Entry(moveYFrame)
+        self.moveYEnt.insert(0, "0")
+        moveYBtn = ttk.Button(moveYFrame, text="move (in steps)", command=self.moveYRelSteps)
+        grid(self.moveYEnt, 0, 0, 5, 5)
+        grid(moveYBtn, 0, 1, 5, 5)
+        grid(moveYFrame, 1, 1, 5, 5)
 
         self.buttons = [self.armEnt, armBtn, aoBtn, self.armSEnt, armSBtn, stepbtn, applyPressureBtn, 
                         steadyStopBtn, printBtn, saveOffBtn, gotoBtn, saveFirstBtn, chanToCamBtn, 
-                        chanToPBtn, toKBtn, self.steadyPBtn, self.armMEnt, armMBtn, toCamBtn]
+                        chanToPBtn, toKBtn, self.steadyPBtn, self.armMEnt, armMBtn, toCamBtn, moveYBtn]
+
+    def moveYRelSteps(self):
+        steps = self.moveYEnt.get()
+        def cb():
+            for btn in self.buttons: btn["state"] = "normal"
+
+        try:
+            steps = int(steps)
+            for btn in self.buttons: btn["state"] = "disabled"
+            driver.moveByYRelSteps(steps, cb)
+        except Exception as e:
+            messagebox.showerror(title="error", message=str(e))
 
     def getPressure(self):
         pres = driver.microscope.printer.pressure.pcontroller.get_pressure(4)

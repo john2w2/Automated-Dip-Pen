@@ -1,6 +1,4 @@
-from random import random
 import serial
-import time
 
 class Screw:
     """
@@ -10,7 +8,6 @@ class Screw:
     :type numStarts: int, optional
     :param tpi: Threads Per Inch. Count number of thread peaks per inch
     :type tpi: int, optional
-
     """
 
     def __init__(self, numStarts=2, tpi=13):
@@ -87,7 +84,7 @@ class ZMotor:
         self.__waitForIdle()
 
     def interrupt(self):
-        """Stop all movement
+        """Stop all movement. Also will stop y motor
         """
         self.__sendCommand("INTERRUPT")
 
@@ -161,6 +158,7 @@ class ZMotor:
         return pos * self.stepper.distPerStep
 
     def close(self):
+        # TODO: I don't think we need this since we call arduinoController.close() in arm.py/Arm
         """Close serial connection to Arduino
 
         Must be called when program is shuttting down
@@ -186,3 +184,21 @@ class ZMotor:
             if self.arduino.in_waiting:
                 return self.arduino.readline().decode()
 
+class YMotor:
+    def __init__(self, arduinoController):
+        self.arduino = arduinoController
+
+    def moveYRelInSteps(self, steps):
+        cmd = f"moveByY {steps}"
+        self.__sendCommand(cmd)
+        self.__waitForIdle()
+
+    def __sendCommand(self, cmd: str):
+        cmd = f"{cmd}\r"
+        self.arduino.write(cmd.encode())
+
+    def __waitForIdle(self):
+        while True:
+            if self.arduino.in_waiting:
+                if "idle" in self.arduino.readline().decode():
+                    return

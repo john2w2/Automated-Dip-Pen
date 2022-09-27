@@ -398,6 +398,20 @@ class MicroscopeDriver:
     # these low level functions are intended to provide the user with a small amount
     # of control to continue doing sanity checks, or to do small stuff (like focusing a channel)
     # some of these will also be called by high level functions for cleanup / setup
+    def moveByYRelSteps(self, steps: int, cb):
+        """Moves arm along the y axis by steps
+
+        :param steps: number of steps to move
+        :type steps: int
+        """
+
+        t: Thread = Thread(target=self.__moveByYRelSteps, args=[steps, cb])
+        self.currentThread = t
+        t.start()
+
+    def __moveByYRelSteps(self, steps: int, cb):
+        self.microscope.arm.ymotor.moveYRelInSteps(steps)
+        cb()
 
     def moveToZRelInUM(self, um, cb):
         """_summary_

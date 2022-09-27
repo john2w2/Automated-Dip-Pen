@@ -1,6 +1,6 @@
 import serial
 
-from stepper import ZMotor
+from stepper import ZMotor, YMotor
 from time import sleep # for waiting for priorController to start up
 
 class Arm:
@@ -11,6 +11,7 @@ class Arm:
         self.waitForReady(self.arduinoController)
 
         self.zmotor = ZMotor(arduinoController=self.arduinoController)
+        self.ymotor = YMotor(arduinoController=self.arduinoController)
 
         # NOTE: these are all placeholder
         # TODO: load positions from file
