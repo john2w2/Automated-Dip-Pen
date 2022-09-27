@@ -1232,7 +1232,7 @@ class AdditionalCommands(ttk.LabelFrame):
 
         openMenu = ttk.Button(self, text="open low-level command menu", command=self.openLowMenu)
         grid(openMenu, 4, 0, 0, 0)
-        # STARTUP_DISABLED_BUTTONS.append(openMenu) # TODO: maybe uncomment this
+        STARTUP_DISABLED_BUTTONS.append(openMenu) # TODO: maybe uncomment this
 
     def openCamera(self):
         def on_closing():
