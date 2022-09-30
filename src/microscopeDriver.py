@@ -817,7 +817,7 @@ class MicroscopeDriver:
         if self.currentThread != None:
             self.currentThread.join()
 
-        self.stop_thread = False
+        self.stop_threads = False
         cb()
 
     # ============ mid-level functions ===============

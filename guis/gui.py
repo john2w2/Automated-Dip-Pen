@@ -1309,7 +1309,7 @@ class AdditionalMenu(ttk.Frame):
         armMBtn = ttk.Button(absFrame, text="move to absolute (in mm)", command=self.moveAbsMM)
 
         stepbtn = ttk.Button(absFrame, text="Get current arm position", command=self.getZPos)
-        intBtn = ttk.Button(absFrame, text="interrupt arm movement", command=self.intteruptArm)
+        intBtn = ttk.Button(absFrame, text="interrupt arm / any multi-step movement", command=self.intteruptArm)
         absFrame.grid(row=2, column=0, columnspan=2, sticky='nsew')
 
         aoBtn.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
@@ -1320,7 +1320,6 @@ class AdditionalMenu(ttk.Frame):
         grid(armSBtn, 0, 1, 5, 5)
         grid(self.armMEnt, 1, 0, 5, 5)
         grid(armMBtn, 1, 1, 5, 5)
-
 
 
         stepbtn.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
@@ -1478,7 +1477,8 @@ class AdditionalMenu(ttk.Frame):
             messagebox.showerror(title="error", message=str(e))
 
     def intteruptArm(self):
-        def fakecb():print("interrupting complete")
+        # TODO: only call driver.microscope.interruptArm()
+        def fakecb(): print("interrupting complete")
         driver.interrupt(fakecb)
 
     def moveArm(self):
