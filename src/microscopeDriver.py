@@ -209,6 +209,15 @@ class MicroscopeDriver:
 
         self.sampleWells = wells
 
+    def recalibPressOffset(self, cb):
+        t: Thread = Thread(target=self.__recalibPressOffset, args=[cb])
+        self.currentThread = t
+        t.start()
+
+    def __recalibPressOffset(self, cb):
+        self.microscope.printer.pressure.recalibrateOffset()
+        cb()
+
     # ========================================= #
     #               sanity checks               #
     # ========================================= #

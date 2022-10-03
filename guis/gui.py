@@ -1,3 +1,4 @@
+from multiprocessing.sharedctypes import Value
 import tkinter as tk
 import sys
 sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
@@ -1232,7 +1233,7 @@ class AdditionalCommands(ttk.LabelFrame):
 
         openMenu = ttk.Button(self, text="open low-level command menu", command=self.openLowMenu)
         grid(openMenu, 4, 0, 0, 0)
-        STARTUP_DISABLED_BUTTONS.append(openMenu) # TODO: maybe uncomment this
+        # STARTUP_DISABLED_BUTTONS.append(openMenu) # TODO: maybe uncomment this
 
     def openCamera(self):
         def on_closing():
@@ -1345,9 +1346,6 @@ class AdditionalMenu(ttk.Frame):
         applyPressureBtn.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
         grid(paFrame, 1,0,5,5)
 
-        # trigger jetserver
-            # labelframe, button
-
         # set pressure for undefined amount of time (equilibrium pressure, in, out)
             # labelframe, entry, button, stop button (set to zero)
         self.steadyPFrame = ttk.LabelFrame(self, text="set constant pressure (mbar)")
@@ -1358,12 +1356,15 @@ class AdditionalMenu(ttk.Frame):
         self.steadyPBtn = ttk.Button(self.steadyPFrame, text="set this as pressure", command=self.setSteady)
         steadyStopBtn = ttk.Button(self.steadyPFrame, text="set pressure to 0", command=self.clearSteady)
         getPBtn = ttk.Button(self.steadyPFrame, text="get current pressure", command=self.getPressure)
-        grid(self.steadyPFrame, 3, 0, 5,5)
+        grid(self.steadyPFrame, 2, 0, 5,5)
         grid(self.steadyPent, 0,0,5,5)
         grid(self.steadyPBtn, 0,1,5,5)
         steadyStopBtn.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
         getPBtn.grid(row=2, column=0, columnspan=2, pady=5, padx=5, sticky='nsew')
 
+        # call recalibrateOffset on pressure system
+        calibPOffsetBtn = ttk.Button(self.steadyPFrame, text="recalibrate pressure system's offset", command=self.recalibPressOffset)
+        calibPOffsetBtn.grid(row=3, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
         # offset calibration menu
             # labelframe, print button, set button, goto button
             # stores self.printloc
@@ -1375,7 +1376,22 @@ class AdditionalMenu(ttk.Frame):
         printBtn = ttk.Button(offFrame, text="print drop, save location", command=self.triggerJet)
         saveOffBtn = ttk.Button(offFrame, text="save offset (set point)", command=self.setPnt)
         gotoBtn = ttk.Button(offFrame, text="show drop on cam", command=self.dropOnCam) # offset must be good first
-        grid(offFrame, 4, 0, 5,5)
+
+        saveWaitFrame = ttk.LabelFrame(offFrame, text="Save waiting time (seconds)")
+        for i in range(2):
+            saveWaitFrame.columnconfigure(i, weight=1)
+            saveWaitFrame.rowconfigure(i, weight=1)
+        
+        self.waitEnt = ttk.Entry(saveWaitFrame)
+        self.waitEnt.insert(0, "5")
+        waitBtn = ttk.Button(saveWaitFrame, text="save wait time", command=self.saveWait)
+        grid(self.waitEnt, 0, 0, 0, 0)
+        grid(waitBtn, 0, 1, 0, 0)
+
+        saveWaitFrame.grid(row=3, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
+        toCamBtn = ttk.Button(offFrame, text="print to current camera position", command=self.printToCam)
+        toCamBtn.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
+        grid(offFrame, 0, 1, 5,5)
         grid(printBtn, 0,0,5,5)
         grid(gotoBtn, 1,0,5,5)
         saveOffBtn.grid(row=0, column=1, rowspan=2, padx=5, pady=5, sticky='nsew')
@@ -1389,7 +1405,7 @@ class AdditionalMenu(ttk.Frame):
         self.chanToPEnt = ttk.Entry(stageFrame)
         chanToPBtn = ttk.Button(stageFrame, text="move channel to printer", command=self.chanToPrinter)
 
-        grid(stageFrame, 5, 0, 5, 5)
+        grid(stageFrame, 2, 1, 5, 5)
         grid(saveFirstBtn, 0, 0, 5, 5)
         saveFirstBtn.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
         grid(self.chanToCamEnt, 1, 0, 5, 5)
@@ -1404,11 +1420,9 @@ class AdditionalMenu(ttk.Frame):
         toKBtn = ttk.Button(toKFrame, text="start printing", command=self.printToK)
         grid(self.toKEnt, 0, 0, 5, 5)
         grid(toKBtn, 0, 1, 5, 5)
-        grid(toKFrame, 6, 0, 5, 5)
+        grid(toKFrame, 4, 1, 5, 5)
 
-        toCamBtn = ttk.Button(self, text="print to current camera position", command=self.printToCam)
 
-        grid(toCamBtn, 0, 1, 5, 5)
 
         moveYFrame = ttk.LabelFrame(self, text="Move arm relatively along y-axis rod")
         self.moveYEnt = ttk.Entry(moveYFrame)
@@ -1420,7 +1434,26 @@ class AdditionalMenu(ttk.Frame):
 
         self.buttons = [self.armEnt, armBtn, aoBtn, self.armSEnt, armSBtn, stepbtn, applyPressureBtn, 
                         steadyStopBtn, printBtn, saveOffBtn, gotoBtn, saveFirstBtn, chanToCamBtn, 
-                        chanToPBtn, toKBtn, self.steadyPBtn, self.armMEnt, armMBtn, toCamBtn, moveYBtn]
+                        chanToPBtn, toKBtn, self.steadyPBtn, self.armMEnt, armMBtn, toCamBtn, moveYBtn,
+                        waitBtn, calibPOffsetBtn ]
+    def recalibPressOffset(self):
+        def cb():
+            for btn in self.buttons: btn["state"] = "normal"
+        
+        for btn in self.buttons: btn["state"] = "disabled"
+        driver.recalibPressOffset(cb)
+
+    def saveWait(self):
+        wait = self.waitEnt.get()
+        try:
+            wait = float(wait)
+            if wait < 0:
+                raise ValueError("Wait time must not be negative")
+            
+            driver.microscope.printer.voltage.setWait(wait)
+
+        except Exception as e:
+            messagebox.showerror(title="error saving wait time", message=str(e))
 
     def moveYRelSteps(self):
         steps = self.moveYEnt.get()
@@ -1527,9 +1560,9 @@ class AdditionalMenu(ttk.Frame):
         try:
             pressure = float(pressure)
             seconds = float(seconds)
-            driver.microscope.printer.pressure.pcontroller.set_pressure(4, pressure)
+            driver.microscope.printer.pressure.setSteady(pressure)
             sleep(seconds)
-            driver.microscope.printer.pressure.pcontroller.set_pressure(4, 0)
+            driver.microscope.printer.pressure.setToZero()
         except Exception as e:
             print(e)
 
@@ -1537,12 +1570,12 @@ class AdditionalMenu(ttk.Frame):
         steadyP = self.steadyPent.get()
         try:
             steadyP = float(steadyP)
-            driver.microscope.printer.pressure.pcontroller.set_pressure(4, steadyP)
+            driver.microscope.printer.pressure.setSteady(steadyP)
         except Exception as e:
             print(e)
 
     def clearSteady(self):
-            driver.microscope.printer.pressure.pcontroller.set_pressure(4, 0)
+            driver.microscope.printer.pressure.setToZero()
 
     def triggerJet(self):
         driver.microscope.printer.printSingleDrop()

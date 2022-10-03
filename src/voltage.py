@@ -5,16 +5,24 @@ class Voltage:
     def __init__(self, priorController: serial.Serial):
         self.ser = priorController
         self.shockDuration = 0.2
+        self.waitTime = 5.0 
 
     def print(self):
-        # TODO: change wait time if bad
-        time.sleep(0.75)
+        time.sleep(self.waitTime)
         self.writeCmd("TTL,0,1")
         time.sleep(self.shockDuration)
         self.writeCmd("TTL,0,0")
         time.sleep(0.1)
         self.clearSer()
-        time.sleep(0.75)
+        time.sleep(self.waitTime)
+
+    def setWait(self, wait: float):
+        """Sets the before and after wait time for printing
+
+        :param wait: time in seconds 
+        :type wait: float
+        """
+        self.waitTime = wait
 
     def writeCmd(self, cmd):
         cmd = f"{cmd}\r"
