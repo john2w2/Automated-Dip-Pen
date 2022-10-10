@@ -1,0 +1,14 @@
+ raise SerialException("ClearCommError failed ({!r})".format(ctypes.WinError()))
+    if self.arduino.in_waiting:
+  File "C:\Users\19199\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.10_qbz5n2kfra8p0\LocalCache\local-packages\Python310\site-packages\serial\serialwin32.py", line 259, in in_waiting   
+  File "C:\Users\19199\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.10_qbz5n2kfra8p0\LocalCache\local-packages\Python310\site-packages\serial\serialwin32.py", line 259, in in_waiting   
+serial.serialutil.SerialException: ClearCommError failed (OSError(9, 'The handle is invalid.', None, 6))
+  File "C:\Users\19199\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.10_qbz5n2kfra8p0\LocalCache\local-packages\Python310\site-packages\serial\serialwin32.py", line 259, in in_waiting   
+    raise SerialException("ClearCommError failed ({!r})".format(ctypes.WinError()))
+    raise SerialException("ClearCommError failed ({!r})".format(ctypes.WinError()))
+serial.serialutil.SerialException: ClearCommError failed (OSError(9, 'The handle is invalid.', None, 6))
+serial.serialutil.SerialException: ClearCommError failed (OSError(9, 'The handle is invalid.', None, 6))
+    raise SerialException("ClearCommError failed ({!r})".format(ctypes.WinError()))
+serial.serialutil.SerialException: ClearCommError failed (OSError(9, 'The handle is invalid.', None, 6))
+        microscope closed
+driver closed

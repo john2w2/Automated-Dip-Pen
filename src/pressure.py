@@ -30,20 +30,20 @@ class Pressure:
 
   def inThenHold(self):
     # TODO: don't hard-code channel as 4 (maybe)
-    self.pcontroller.set_pressure(4, self.inPressure + self.offset)
+    self.pcontroller.set_pressure(3, self.inPressure + self.offset)
     sleep(self.inTime)
-    self.pcontroller.set_pressure(4, self.eqPressure + self.offset)
+    self.pcontroller.set_pressure(3, self.eqPressure + self.offset)
     self.lastReqPressure = self.eqPressure
 
   def dispense(self):
-    self.pcontroller.set_pressure(4, self.outPressure + self.offset)
+    self.pcontroller.set_pressure(3, self.outPressure + self.offset)
     sleep(self.outTime)
-    self.pcontroller.set_pressure(4, self.eqPressure + self.offset)
+    self.pcontroller.set_pressure(3, self.eqPressure + self.offset)
     self.lastReqPressure = self.eqPressure
 
   def saveAndSetEq(self, eqP: float):
     self.eqPressure = eqP
-    self.pcontroller.set_pressure(4, self.eqPressure + self.offset)
+    self.pcontroller.set_pressure(3, self.eqPressure + self.offset)
     self.lastReqPressure = self.eqPressure
 
   def recalibrateOffset(self):
@@ -52,19 +52,19 @@ class Pressure:
     and the requested pressure.
     That offset is then used when setting new values
     """
-    self.pcontroller.set_pressure(4, self.lastReqPressure)
+    self.pcontroller.set_pressure(3, self.lastReqPressure)
     print(f"Last requested is {self.lastReqPressure}")
     vals = []
 
     for _ in range(100):
       sleep(0.5)
-      vals.append(self.pcontroller.get_pressure(4))
+      vals.append(self.pcontroller.get_pressure(3))
       print(vals[-1])
 
     self.offset = self.lastReqPressure - np.average(np.array(vals))
 
   def setSteady(self, steadyP):
-    self.pcontroller.set_pressure(4, steadyP + self.offset)
+    self.pcontroller.set_pressure(3, steadyP + self.offset)
     self.lastReqPressure = steadyP
 
   def setToZero(self):
@@ -72,7 +72,7 @@ class Pressure:
 
   def stop(self):
     # Set pressure to equilibrium pressure so nothing is drawn in or dispensed
-    self.pcontroller.set_pressure(4, 0)
+    self.pcontroller.set_pressure(3, 0)
 
   def close(self):
     self.pcontroller.close()
