@@ -101,7 +101,9 @@ class CamWidget(tk.Frame):
     def camStuff(self):
         self.cambut["state"] = "disabled"
         try:
-            self.cam = Camera()
+            # TODO: revamp this using opencv
+            self.cam = Camera() # TODO: maybe construct camera higher up
+            # TODO: maybe just do all mmc stuff in this widget??????? (no call to Camera)
             self.stopbut["state"] = "normal"
             while not self.stopCamThreads:
                 img = self.cam.getImage(resizeImg=True, crop=self.zoomIn, scale=True)

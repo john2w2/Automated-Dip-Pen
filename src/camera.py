@@ -1,8 +1,9 @@
-from audioop import cross
 import pymmcore
 import os.path
 import numpy as np
 import math
+from pymmcore_plus import CMMCorePlus
+from time import sleep
 
 from skimage.transform import resize # necessary if we want to resize without opencv
 from skimage.draw import line_aa # can draw lines with this instead of cv
@@ -10,20 +11,30 @@ from skimage.draw import line_aa # can draw lines with this instead of cv
 class Camera:
     def __init__(self, configPath="Coolsnap.cfg"):
         mm_dir = "C:\Program Files\Micro-Manager-2.0"
-        self.mmc = pymmcore.CMMCore()
-        self.mmc.setDeviceAdapterSearchPaths([mm_dir])
-        # self.mmc.loadSystemConfiguration(os.path.join(mm_dir, "Coolsnap.cfg"))
+        self.mmc = CMMCorePlus.instance(mm_path=mm_dir)
+        # self.mmc = pymmcore.CMMCore()
         self.mmc.loadSystemConfiguration(os.path.join(mm_dir, configPath))
+        # self.mmc.setDeviceAdapterSearchPaths([mm_dir])
+        # self.mmc.loadSystemConfiguration(os.path.join(mm_dir, "Coolsnap.cfg"))
+        # self.mmc.loadSystemConfiguration(os.path.join(mm_dir, configPath))
         # self.mmc.loadSystemConfiguration(os.path.join(mm_dir, "MMConfig_ham.cfg"))
         self.mmc.setExposure(300)
         self.rMin = None
         self.rMax = None
         self.gain = 20 # default gain of 20 (max) TODO: change from 20
 
+        self.mmc.startContinuousSequenceAcquisition()
+
     # return ndarray
+    # NOTE: will be deprecated
     def getImage(self, resizeImg=True, crop=False, scale=True):
-        self.mmc.snapImage()
-        img = self.mmc.getImage()
+        # self.mmc.snapImage()
+        # img = self.mmc.getImage()
+        # img = self.mmc.snap()
+        while (self.mmc.getRemainingImageCount() == 0):
+            sleep(0.05)
+        img = self.mmc.getLastImage()
+
         if crop: img = self.cropToChannel(img) # crop before resizing so quality remains good(ish)
         if resizeImg: img = (resize(img, (401, 601), preserve_range=True))
         if scale: img = self.scaleImage(img)
