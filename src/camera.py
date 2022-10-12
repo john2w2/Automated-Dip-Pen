@@ -8,15 +8,17 @@ from skimage.transform import resize # necessary if we want to resize without op
 from skimage.draw import line_aa # can draw lines with this instead of cv
 
 class Camera:
-    def __init__(self):
+    def __init__(self, configPath="Coolsnap.cfg"):
         mm_dir = "C:\Program Files\Micro-Manager-2.0"
         self.mmc = pymmcore.CMMCore()
         self.mmc.setDeviceAdapterSearchPaths([mm_dir])
-        self.mmc.loadSystemConfiguration(os.path.join(mm_dir, "Coolsnap.cfg"))
+        # self.mmc.loadSystemConfiguration(os.path.join(mm_dir, "Coolsnap.cfg"))
+        self.mmc.loadSystemConfiguration(os.path.join(mm_dir, configPath))
+        # self.mmc.loadSystemConfiguration(os.path.join(mm_dir, "MMConfig_ham.cfg"))
         self.mmc.setExposure(300)
         self.rMin = None
         self.rMax = None
-        self.gain = 20 # default gain of 4 (max) TODO: change from 20
+        self.gain = 20 # default gain of 20 (max) TODO: change from 20
 
     # return ndarray
     def getImage(self, resizeImg=True, crop=False, scale=True):

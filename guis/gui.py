@@ -1422,8 +1422,6 @@ class AdditionalMenu(ttk.Frame):
         grid(toKBtn, 0, 1, 5, 5)
         grid(toKFrame, 4, 1, 5, 5)
 
-
-
         moveYFrame = ttk.LabelFrame(self, text="Move arm relatively along y-axis rod")
         self.moveYEnt = ttk.Entry(moveYFrame)
         self.moveYEnt.insert(0, "0")
@@ -1432,10 +1430,14 @@ class AdditionalMenu(ttk.Frame):
         grid(moveYBtn, 0, 1, 5, 5)
         grid(moveYFrame, 1, 1, 5, 5)
 
+        # resetArdBtn = ttk.Button(self, text="restart arduino", command=driver.reconnectArduino)
+        # grid(resetArdBtn, 5, 1, 5, 5)
+
         self.buttons = [self.armEnt, armBtn, aoBtn, self.armSEnt, armSBtn, stepbtn, applyPressureBtn, 
                         steadyStopBtn, printBtn, saveOffBtn, gotoBtn, saveFirstBtn, chanToCamBtn, 
                         chanToPBtn, toKBtn, self.steadyPBtn, self.armMEnt, armMBtn, toCamBtn, moveYBtn,
                         waitBtn, calibPOffsetBtn ]
+
     def recalibPressOffset(self):
         def cb():
             for btn in self.buttons: btn["state"] = "normal"

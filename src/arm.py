@@ -7,6 +7,7 @@ class Arm:
     # TODO: later, pass in YMotor
     def __init__(self, arduinoPort): # TODO: pass in arduinoController here
         # since serial connection made here, we will wait for it to be ready here as well
+        self.arduinoPort = arduinoPort
         self.arduinoController = serial.Serial(port=arduinoPort, baudrate=115200, timeout=0.1)
         self.waitForReady(self.arduinoController)
 

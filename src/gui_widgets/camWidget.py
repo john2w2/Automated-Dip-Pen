@@ -105,6 +105,7 @@ class CamWidget(tk.Frame):
             self.stopbut["state"] = "normal"
             while not self.stopCamThreads:
                 img = self.cam.getImage(resizeImg=True, crop=self.zoomIn, scale=True)
+                # img = self.cam.getImage(resizeImg=False, crop=self.zoomIn, scale=False)
                 if self.drawCross:
                     img = self.cam.drawCross(img)
                 
