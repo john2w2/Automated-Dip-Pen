@@ -1,7 +1,11 @@
 from multiprocessing.sharedctypes import Value
 import tkinter as tk
 import sys
+
+import cv2
+
 sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
+from camera import Camera
 
 from tkinter import ttk
 from tkinter import messagebox
@@ -1235,22 +1239,32 @@ class AdditionalCommands(ttk.LabelFrame):
         grid(openMenu, 4, 0, 0, 0)
         # STARTUP_DISABLED_BUTTONS.append(openMenu) # TODO: maybe uncomment this
 
+        # TODO: maybe make camera a global variable, that way it can be passed to the driver
+        # TODO: connecting to camera can throw an error, so we should really connect when opening camera
+
     def openCamera(self):
         def on_closing():
-            # if not self.cw.stopCamThreads:
-            # self.cw.stopCamThreads = True
+            if not self.cw.stopCamThreads:
+                messagebox.showerror(title="error closing camera", message="please stop camera feed before closing")
+                return
+
+
+            self.camera.reset() # TODO: make a close method in camera later
             cameraWin.destroy()
             self.camOpen = False
-            # else:
-                # messagebox.showerror(title="cannot close camera window", message="Please click 'stop camera feed' before closing window")
 
         if not self.camOpen:
-            cameraWin = tk.Toplevel(root)
-            cameraWin.title("Camera Display")
-            self.cw = CamWidget(cameraWin)
-            grid(self.cw , 0,0,0,0)
-            cameraWin.protocol("WM_DELETE_WINDOW", on_closing)
-            self.camOpen = True
+            try:
+                # self.camera=Camera()
+                self.camera=Camera(configPath="MMConfig_ham.cfg")
+                cameraWin = tk.Toplevel(root)
+                cameraWin.title("Camera Display")
+                self.cw = CamWidget(cameraWin, self.camera)
+                grid(self.cw , 0,0,0,0)
+                cameraWin.protocol("WM_DELETE_WINDOW", on_closing)
+                self.camOpen = True
+            except Exception as e:
+                messagebox.showerror(title="camera error", message=str(e))
 
     def openLowMenu(self):
         def on_closing():
@@ -1430,8 +1444,8 @@ class AdditionalMenu(ttk.Frame):
         grid(moveYBtn, 0, 1, 5, 5)
         grid(moveYFrame, 1, 1, 5, 5)
 
-        # resetArdBtn = ttk.Button(self, text="restart arduino", command=driver.reconnectArduino)
-        # grid(resetArdBtn, 5, 1, 5, 5)
+        resetArdBtn = ttk.Button(self, text="restart arduino", command=driver.reconnectArduino)
+        grid(resetArdBtn, 5, 1, 5, 5)
 
         self.buttons = [self.armEnt, armBtn, aoBtn, self.armSEnt, armSBtn, stepbtn, applyPressureBtn, 
                         steadyStopBtn, printBtn, saveOffBtn, gotoBtn, saveFirstBtn, chanToCamBtn, 

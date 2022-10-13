@@ -411,11 +411,8 @@ class MicroscopeDriver:
         """
         For if arduino crashes, close serial port, then reopen
         """
-        self.microscope.arm.arduinoController.close()
-        print(self.microscope.arm.arduinoPort)
-        sleep(5)
-        self.microscope.arm.arduinoController = Serial(self.microscope.arm.arduinoPort, baudrate=115200, timeout=0.1)
-        self.microscope.arm.waitForReady(self.microscope.arm.arduinoController)
+        # TODO: thread this
+        self.microscope.arm.reconnectArduino()
 
     def moveByYRelSteps(self, steps: int, cb):
         """Moves arm along the y axis by steps
