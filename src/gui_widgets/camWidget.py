@@ -25,6 +25,7 @@ class CamWidget(tk.Frame):
         self.stopCamThreads = True # flag for ending threads
         self.drawCross = True # whether or not to draw cross on camera
         self.zoomIn = False
+        self.zoomAmount = 0 # a value from 0 to 90
         
         buttonFrame = tk.Frame(self)
         self.cambut = ttk.Button(buttonFrame,text="start camera feed", command = self.camStuffThread, style="Accent.TButton")
@@ -37,8 +38,14 @@ class CamWidget(tk.Frame):
         toggleBut = ttk.Button(buttonFrame, text="toggle +", command=self.toggleCross)
         toggleBut.grid(row=0, column=2, padx=5, pady=5)
 
-        zoomBut = ttk.Button(buttonFrame, text="toggle zoom", command=self.toggleZoom)
-        zoomBut.grid(row=0, column=3, padx=5, pady=5)
+        # zoomBut = ttk.Button(buttonFrame, text="toggle zoom on channel", command=self.toggleZoom)
+        # zoomBut.grid(row=0, column=3, padx=5, pady=5)
+
+        zoomInBut = ttk.Button(buttonFrame, text="zoom in", command=self.incZoom)
+        zoomInBut.grid(row=0, column=4, padx=5, pady=5)
+
+        zoomOutBut = ttk.Button(buttonFrame, text="zoom out", command=self.decZoom)
+        zoomOutBut.grid(row=0, column=5, padx=5, pady=5)
 
         # gain entry, gain button
         # exposure entry, exposure button
@@ -53,18 +60,30 @@ class CamWidget(tk.Frame):
         # NOTE: due to the speed of the new camera, I think gain is unneeded
         # but we'll see once we plug it into the microscope
 
-        # gainFrame = ttk.LabelFrame(buttonFrame, text="set gain (brightness factor)")
-        # self.gainEnt= ttk.Entry(gainFrame)
-        # self.gainEnt.insert(0, "20")
-        # gainBtn = ttk.Button(gainFrame, text="set gain", command=self.setGain)
-        # self.gainEnt.grid(row = 0, column=0)
-        # gainBtn.grid(row=0, column=1)
-        # gainFrame.grid(row=1, column=1)
+        gainFrame = ttk.LabelFrame(buttonFrame, text="set gain (brightness factor)")
+        self.gainEnt= ttk.Entry(gainFrame)
+        self.gainEnt.insert(0, "20")
+        gainBtn = ttk.Button(gainFrame, text="set gain", command=self.setGain)
+        self.gainEnt.grid(row = 0, column=0)
+        gainBtn.grid(row=0, column=1)
+        gainFrame.grid(row=1, column=1)
 
         buttonFrame.pack()
 
         self.cam: Camera = camObj
         self.lose = True
+
+    def incZoom(self):
+        if self.zoomAmount < 90:
+            self.zoomAmount += 10
+        elif self.zoomAmount < 95:
+            self.zoomAmount += 5
+
+    def decZoom(self):
+        if self.zoomAmount == 95:
+            self.zoomAmount -= 5
+        elif self.zoomAmount > 0:
+            self.zoomAmount -= 10
 
     def setGain(self):
         gain = self.gainEnt.get()
@@ -110,20 +129,29 @@ class CamWidget(tk.Frame):
 
             self.cam.startAcquisition()
 
-            cv2.namedWindow("feed", cv2.WINDOW_NORMAL)
-            cv2.resizeWindow("feed", 601, 401)
+            cv2.namedWindow("feed", cv2.WINDOW_KEEPRATIO)
+            cv2.resizeWindow("feed", 600, 600)
 
             while not self.stopCamThreads and cv2.getWindowProperty('feed', 0) >=0:
                 if self.cam.waitingImages() > 0:
 
                     img = self.cam.getNextFrame()
 
-                    if self.zoomIn: img = self.cam.cropToChannel(img)
+                    # if self.zoomIn: img = self.cam.cropToChannel(img)
+                    img = self.cam.zoomIn(img, self.zoomAmount)
                     if self.drawCross: self.cam.drawCross(img, crossColor=2**16-1)
                     # TODO: make gain work???
                     # if self.cam.gain != 1:
                         # img = self.cam.scaleImage(img)
-                    
+                    self.cam.scaleImage(img)
+                    imageRect = cv2.getWindowImageRect("feed")
+
+                    # if user resizes window into non-square
+                    # make the frame square again
+                    if (imageRect[2] != imageRect[3]):
+                        minRes = min(imageRect[2], imageRect[3])
+                        cv2.resizeWindow("feed", minRes, minRes)
+
                     cv2.imshow("feed", img)
                 if cv2.waitKey(20) >= 0:
                     cv2.destroyAllWindows()

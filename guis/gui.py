@@ -1245,7 +1245,7 @@ class AdditionalCommands(ttk.LabelFrame):
     def openCamera(self):
         def on_closing():
             if not self.cw.stopCamThreads:
-                messagebox.showerror(title="error closing camera", message="please stop camera feed before closing")
+                messagebox.showerror(title="error closing camera", message="please click stop camera feed before closing")
                 return
 
 
