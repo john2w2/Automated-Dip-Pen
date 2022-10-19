@@ -1,19 +1,21 @@
 #include <ezButton.h>
 
-#define dirPin 4
-#define stepPin 5
+// arduino outputs
+#define dirPin 4 // direction for z axis
+#define stepPin 5 // pulse (basically signal to take a step) for z axis
 
-#define yDir 2
-#define yStep 3
+#define yDir 2  // direction for y axis
+#define yStep 3 // pulse for y axis
 int microstep = 8;
 
-
-
-ezButton topLimit(12);
-ezButton bottomLimit(13);
+// inputs to arduino
+ezButton topLimit(12); // top limit switch
+ezButton bottomLimit(13); // bottom limit switch
 
 // position in number of steps from top limit switch
-int zposition = 12345; // represents some uninitialized value (actual value is in range [0, -5000ish). Right now the lowest we have it go is -5200
+int zposition = 12345; // represents some uninitialized value (actual value is in range [0, -6000ish). 
+                       // The range depends on how high limit switch is, but will always be negative since
+                       // we are moving below the top limit switch 
 
 void setup() {
   pinMode(stepPin, OUTPUT);
@@ -23,7 +25,8 @@ void setup() {
   Serial.begin(115200);
   topLimit.setDebounceTime(50);
   bottomLimit.setDebounceTime(50);
-  delay(1000); // some delay so driver has time to wake up (I saw this online IDK what it means but I think it's important)
+  delay(1000); // some delay so stepper drivers have time to wake up (I saw this online IDK what it means but I think it's important)
+  Serial.println("arduino ready"); // this signal tells python that the arduino is ready for commands
 }
 
 // replacement for library command to take a step
@@ -76,6 +79,8 @@ void calibrate() {
 
 // moves the z arm to pos 
 // top is 0, everything below is negative
+// If everything is wired correctly, the motor will not move above 0. 
+// It will ignore commands that tell it to move above 0 rather than moving to 0
 void moveToZ(int pos){
   if (pos > 0 || zposition > 0) return; // zposition > 0 when not calibrated
   int difference = pos - zposition; // 
@@ -161,6 +166,7 @@ void moveByY(int steps){
   }
 }
 
+// waits for serial commands, then calls the appropriate function for each command
 void loop() {
   bottomLimit.loop();
   topLimit.loop();
@@ -183,8 +189,9 @@ void loop() {
   dispatch(cmd, arg);
 }
 
-// interprets the serial command, dispatching it to the appropriate function
-// all movement related commands will emit an "idle" signal when finished, handled here
+// Interprets the serial command, dispatching it to the appropriate function.
+// All movement related commands will emit an "idle" signal when finished.
+// If a command isn't recognized, the arduino does nothing
 void dispatch(String cmd, String arg){
   if (cmd.equals("moveToZAbsolute")) {
     int steps = arg.toInt();

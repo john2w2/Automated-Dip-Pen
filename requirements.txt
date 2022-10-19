@@ -1,5 +1,5 @@
 pyserial
 numpy
-opencv-python
 pymmcore
+scikit-image
 

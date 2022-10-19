@@ -1,5 +1,4 @@
 import serial
-import time
 
 class Screw:
     """
@@ -9,7 +8,6 @@ class Screw:
     :type numStarts: int, optional
     :param tpi: Threads Per Inch. Count number of thread peaks per inch
     :type tpi: int, optional
-
     """
 
     def __init__(self, numStarts=2, tpi=13):
@@ -37,7 +35,7 @@ class Screw:
         lead = pitch * self.numStarts
         return lead
 
-
+# TODO: merge
 class Stepper:
 
     """
@@ -72,13 +70,11 @@ class ZMotor:
     :type timeout: float, optional
 
     """
-    def __init__(self, stepper: Stepper, port="COM7", baudrate=115200, timeout=0.1):
-        self.stepper = stepper
-        self.arduino = serial.Serial(
-            port=port, baudrate=baudrate, timeout=timeout)
-
-        # TODO: you have to wait?
-        time.sleep(2)
+    # TODO: add constructor parameters: numStarts, TPI
+    def __init__(self, arduinoController: serial.Serial, numStarts=2, tpi=13, stepsPerRev=200):
+        self.screw = Screw(numStarts=numStarts, tpi=tpi)
+        self.stepper = Stepper(screw=self.screw, stepsPerRev=stepsPerRev)
+        self.arduino = arduinoController
 
     def calibrateOrigin(self):
         """Move arm until it hits topmost limit switch, saves that position as origin
@@ -88,7 +84,7 @@ class ZMotor:
         self.__waitForIdle()
 
     def interrupt(self):
-        """Stop all movement
+        """Stop all movement. Also will stop y motor
         """
         self.__sendCommand("INTERRUPT")
 
@@ -110,7 +106,7 @@ class ZMotor:
 
         Example:
         ```
-        zm.moveToZInMM(-3000)
+        zm.moveToZInUM(-3000)
         ```
 
         :param dist: Distance (in um) from the top
@@ -162,6 +158,7 @@ class ZMotor:
         return pos * self.stepper.distPerStep
 
     def close(self):
+        # TODO: I don't think we need this since we call arduinoController.close() in arm.py/Arm
         """Close serial connection to Arduino
 
         Must be called when program is shuttting down
@@ -187,3 +184,21 @@ class ZMotor:
             if self.arduino.in_waiting:
                 return self.arduino.readline().decode()
 
+class YMotor:
+    def __init__(self, arduinoController):
+        self.arduino = arduinoController
+
+    def moveYRelInSteps(self, steps):
+        cmd = f"moveByY {steps}"
+        self.__sendCommand(cmd)
+        self.__waitForIdle()
+
+    def __sendCommand(self, cmd: str):
+        cmd = f"{cmd}\r"
+        self.arduino.write(cmd.encode())
+
+    def __waitForIdle(self):
+        while True:
+            if self.arduino.in_waiting:
+                if "idle" in self.arduino.readline().decode():
+                    return

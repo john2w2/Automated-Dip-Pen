@@ -1,4 +1,5 @@
 class Plate:
+    # TODO: maybe store center-to-center distance instand of diameter
     """
     This class represents the Well Plate used for experimentation
 
@@ -26,3 +27,18 @@ class Plate:
         self.numCols = numCols
         self.diam = diam
         self.depth = depth
+
+class Plate6(Plate):
+    """6 well plate"""
+    def __init__(self):
+        super().__init__(numRows=2, numCols=3, diam=39120, depth=17400)
+
+class Plate96(Plate):
+    """96 well palte"""
+    def __init__(self):
+        super().__init__(numRows=8, numCols=12, diam=9000, depth=11000)
+    
+class Plate384(Plate):
+    """384 well plate"""
+    def __init__(self):
+        super().__init__(numRows=16, numCols=24, diam=4500, depth=10400)

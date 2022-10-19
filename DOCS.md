@@ -6,9 +6,11 @@
 - Hamamatsu Camera: https://www.hamamatsu.com/content/dam/hamamatsu-photonics/sites/documents/99_SALES_LIBRARY/sys/SCAS0156E_HCImage-Flash4.0V2.pdf
 
 
-# Developers
+# Development
 
 - Python Documentation Guide (Sphinx): https://sphinx-rtd-tutorial.readthedocs.io/en/latest/docstrings.html
+
+- Python, How to Structure a Project: https://docs.python-guide.org/writing/structure/
 
 - Automated-SCA Code Hierarchy Diagram: https://docs.google.com/drawings/d/1Kuz1d2hwv_kSy3Ww1llaX-6a0z4WXBqCEhWC7uq_7A8/edit?usp=sharing
 

@@ -1,7 +1,11 @@
+from audioop import cross
 import pymmcore
 import os.path
-import cv2 as cv
 import numpy as np
+import math
+
+from skimage.transform import resize # necessary if we want to resize without opencv
+from skimage.draw import line_aa # can draw lines with this instead of cv
 
 class Camera:
     def __init__(self):
@@ -9,38 +13,74 @@ class Camera:
         self.mmc = pymmcore.CMMCore()
         self.mmc.setDeviceAdapterSearchPaths([mm_dir])
         self.mmc.loadSystemConfiguration(os.path.join(mm_dir, "Coolsnap.cfg"))
+        self.mmc.setExposure(300)
         self.rMin = None
         self.rMax = None
+        self.gain = 20 # default gain of 4 (max) TODO: change from 20
 
     # return ndarray
-    def getImage(self):
+    def getImage(self, resizeImg=True, crop=False, scale=True):
         self.mmc.snapImage()
         img = self.mmc.getImage()
-        img = self.contrastImage(img)
-        img = (cv.resize(img, (img.shape[1] // 2, img.shape[0] // 2)))
+        if crop: img = self.cropToChannel(img) # crop before resizing so quality remains good(ish)
+        if resizeImg: img = (resize(img, (401, 601), preserve_range=True))
+        if scale: img = self.scaleImage(img)
         return img
 
-    def contrastImage(self, img):
-        """Increase constrast in image
+    def cropToChannel(self, img):
+        numR, numC = img.shape
+        img = img[numR // 2- 50: numR // 2 + 50, numC // 2 - 75: numC // 2 + 75]
+        return img
 
-        :param img: Image taken by camera
-        :type img: ndarray
-        :return: Processed image
-        :rtype: ndarray
+    def setExposure(self, exposure: int):
+        """Sets the camera exposure (in ms)
+
+        :param exposure: exposure (ms)
+        :type exposure: int
         """
-        if (self.rMin == None):
-            self.rMin = np.min(img)
-            self.rMax = np.max(img)
-        else:
-            # compute rolling average of min (auto brightness effect)
-            # this is bad, but not sure how to handle consistently making sure image is bright quickly
-            # tweak scalars to change how quickly brightness adjusts (must sum to 1.0)
-            self.rMin = self.rMin * 0.9 + 0.1 * np.min(img)
-            self.rMax = self.rMax * 0.9 + 0.1 * np.max(img)
-        return np.clip((((img - self.rMin) / (self.rMax - self.rMin)) * 255).astype(np.uint8), 0, 255)
 
-    def drawCross(self, img):
+        self.mmc.setExposure(exposure)
+
+    def setGain(self, gain: float):
+        """Sets the gain of the camera
+
+        :param gain: desired gain. Must be in the interval [0.5, 4]
+        :type gain: float
+        """
+
+        if gain < 0.5 or gain > 4:
+            raise ValueError("Desired gain does not fall between 0.5 and 4")
+
+        self.gain = gain
+    
+    def scaleImage(self, img):
+        """Scales the iamge by previously set gain (default to 4)
+        """
+        gainFactor = math.ceil(np.log10(self.gain) / np.log10(2))
+        img = np.clip(img, 0, 2**(16-gainFactor)-1)
+        img = img * self.gain
+
+        # convert to 8-bit integer because that's what ImageTk wants for some reason
+        img = np.clip((((img) / (2**16-1)) * 255).astype(np.uint8), 0, 255)
+        return img
+
+    def drawCross(self, img) -> np.array:
+        """Draws a cross on a copy img, not modifying the original image 
+
+        :param img: the image to draw a cross on
+        :type img: m x n matrix
+        :return: m x n matrix with a cross drawn on the center
+        :rtype: np.array
+        """
+        imCopy = np.matrix.copy(img)
         numRows = img.shape[0]
-        numCol = img.shape[1]
-        cv.line(img, (3 * (numCol // 8), numRows//2), (5 * (numCol // 8), numRows//2), 255, thickness=1) # TODO: color value?
-        cv.line(img, (numCol//2,3 * (numRows // 8)), (numCol//2, 5 * (numRows // 8)), 255, thickness=1)
+        numCols = img.shape[1]
+
+        # make cross same length along each axis
+        crossLen = min(numRows // 5, numCols // 5)
+        rv, cv, valv = line_aa( numRows // 2 - crossLen // 2 , numCols // 2, numRows // 2 + crossLen // 2 , numCols // 2)
+        rh, ch, valh = line_aa(numRows // 2, 0 , numRows // 2, numCols - 1)
+
+        imCopy[rv,cv] = valv * 255
+        imCopy[rh,ch] = valh * 255
+        return imCopy

@@ -4,8 +4,8 @@ import os
 
 # sys.path.insert(1,"C:\\Users\\19199\\Desktop\\kyler v\\Flow Controller\\python_64")
 # sys.path.insert(1,"C:\\Users\\19199\\Desktop\\kyler v\\Flow Controller\\python_64\\DLL64")
-sys.path.insert(1, 'C:\\Users\\19199\\Desktop\\automated-microscope\\code_hierarchy_draft\\flow_controller\\python_64')
-sys.path.insert(1, 'C:\\Users\\19199\\Desktop\\automated-microscope\\code_hierarchy_draft\\flow_controller\\python_64\\DLL64')
+sys.path.insert(1, 'C:\\Users\\19199\\Desktop\\automated-sca\\flow_controller\\python_64')
+sys.path.insert(1, 'C:\\Users\\19199\\Desktop\\automated-sca\\flow_controller\\python_64\\DLL64')
 
 from Elveflow64 import *
 from ctypes import *

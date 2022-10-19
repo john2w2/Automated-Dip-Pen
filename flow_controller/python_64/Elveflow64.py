@@ -3,7 +3,7 @@
 
 from ctypes import *
 # ElveflowDLL=CDLL('C:\\Users\\19199\\Desktop\\kyler v\\Flow Controller\\python_64\\DLL64\\Elveflow64.dll')# change this path
-ElveflowDLL=CDLL('C:\\Users\\19199\\Desktop\\automated-microscope\\code_hierarchy_draft\\flow_controller\\python_64\\DLL64\\Elveflow64.dll')
+ElveflowDLL=CDLL('C:\\Users\\19199\\Desktop\\automated-sca\\flow_controller\\python_64\\DLL64\\Elveflow64.dll')
 
  # Elveflow Library
  # AF1 Device
