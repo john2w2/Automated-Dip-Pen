@@ -1248,7 +1248,6 @@ class AdditionalCommands(ttk.LabelFrame):
                 messagebox.showerror(title="error closing camera", message="please click stop camera feed before closing")
                 return
 
-
             self.camera.reset() # TODO: make a close method in camera later
             cameraWin.destroy()
             self.camOpen = False

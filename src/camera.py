@@ -106,7 +106,7 @@ class Camera:
         # clip below necessary only for imagetk
         # np.clip((((img) / (2**16-1)) * 255).astype(np.uint8), 0, 255, out=img)
 
-    def drawCross(self, img, crossColor=255) -> np.array:
+    def drawCross(self, img, crossColor=255, crossWidth=5) -> np.array:
         """Draws a cross on image, modifying the original image 
         rather than copying it 
         (not copying to make this run much faster)
@@ -123,8 +123,8 @@ class Camera:
         # rv, cv, valv = line_aa( numRows // 2 - crossLen // 2 , numCols // 2, numRows // 2 + crossLen // 2 , numCols // 2)
         # rh, ch, valh = line_aa(numRows // 2, 0 , numRows // 2, numCols - 1)
 
-        cv2.line(img, (0, numRows//2), (numCols, numRows//2), crossColor, 5)
-        cv2.line(img, (numCols//2, 0), (numCols//2, numRows), crossColor, 5)
+        cv2.line(img, (0, numRows//2), (numCols, numRows//2), crossColor, crossWidth)
+        cv2.line(img, (numCols//2, 0), (numCols//2, numRows), crossColor, crossWidth)
 
         # img[rv,cv] = valv * crossColor
         # img[rh,ch] = valh * crossColor

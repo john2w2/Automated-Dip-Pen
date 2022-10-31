@@ -1,3 +1,4 @@
+from math import ceil
 from multiprocessing.sharedctypes import Value
 import tkinter as tk
 import sys
@@ -139,7 +140,10 @@ class CamWidget(tk.Frame):
 
                     # if self.zoomIn: img = self.cam.cropToChannel(img)
                     img = self.cam.zoomIn(img, self.zoomAmount)
-                    if self.drawCross: self.cam.drawCross(img, crossColor=2**16-1)
+                    if self.drawCross: self.cam.drawCross(img, 
+                        crossColor=2**16-1,
+                        crossWidth= ceil(((100 - self.zoomAmount) / 100) * 5)   
+                        )
                     # TODO: make gain work???
                     # if self.cam.gain != 1:
                         # img = self.cam.scaleImage(img)
