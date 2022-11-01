@@ -56,7 +56,7 @@ class Chip:
         if (not self.isEmpty(channelNum)):
             print("ERROR: This channel already holds a sample")
         else:
-            self.chanContents[channelNum-1] = wellID\
+            self.chanContents[channelNum-1] = wellID
 
     def getAllChannelContents(self):
         return self.chanContents.copy()

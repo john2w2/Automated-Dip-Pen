@@ -1484,7 +1484,7 @@ class AdditionalMenu(ttk.Frame):
 
     def getPressure(self):
         pres = driver.microscope.printer.pressure.pcontroller.get_pressure(3)
-        messagebox.showinfo(title="Current pressure on channel 4", message=f"{pres} mbar")
+        messagebox.showinfo(title="Current pressure on channel 3", message=f"{pres} mbar")
 
     def printToK(self):
         num = self.toKEnt.get()
