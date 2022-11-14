@@ -117,7 +117,7 @@ class HighLevel(ttk.LabelFrame):
             self.ardLab = ttk.Label(portFrame, text="Arduino port")
             grid(self.ardLab, 1,0,0,0)
             self.ardEnt = ttk.Entry(portFrame)
-            self.ardEnt.insert(0, "COM7")
+            self.ardEnt.insert(0, "COM3")
             grid(self.ardEnt, 1,1,0,0)
             grid(portFrame, 0,0,5,5)
 
