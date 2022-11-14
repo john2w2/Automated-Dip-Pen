@@ -1,8 +1,8 @@
-from multiprocessing.sharedctypes import Value
 from threading import Thread
 import string
 from time import sleep
 from automatedSCA import AutomatedSCA
+from serial import Serial
 
 
 class MicroscopeDriver:
@@ -407,6 +407,13 @@ class MicroscopeDriver:
     # these low level functions are intended to provide the user with a small amount
     # of control to continue doing sanity checks, or to do small stuff (like focusing a channel)
     # some of these will also be called by high level functions for cleanup / setup
+    def reconnectArduino(self):
+        """
+        For if arduino crashes, close serial port, then reopen
+        """
+        # TODO: thread this
+        self.microscope.arm.reconnectArduino()
+
     def moveByYRelSteps(self, steps: int, cb):
         """Moves arm along the y axis by steps
 

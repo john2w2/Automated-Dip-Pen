@@ -1,12 +1,13 @@
 import serial
 
 from stepper import ZMotor, YMotor
-from time import sleep # for waiting for priorController to start up
+from time import sleep # for restarting arduino
 
 class Arm:
     # TODO: later, pass in YMotor
     def __init__(self, arduinoPort): # TODO: pass in arduinoController here
         # since serial connection made here, we will wait for it to be ready here as well
+        self.arduinoPort = arduinoPort
         self.arduinoController = serial.Serial(port=arduinoPort, baudrate=115200, timeout=0.1)
         self.waitForReady(self.arduinoController)
 
@@ -23,6 +24,17 @@ class Arm:
     def calibrateOrigin(self):
         self.zmotor.calibrateOrigin()
         # TODO: self.ymotor.calibrateOrigin() later on
+
+    def reconnectArduino(self):
+        """
+        Close then reopen arduino's serial port, which
+        resets the arduino's memory. This is intended to be used
+        to reset the arduino when it crashes
+        """
+        self.arduinoController.close()
+        sleep(0.2)
+        self.arduinoController.open()
+        self.waitForReady()
 
     def moveToOrigin(self):
         self.zmotor.moveToZInSteps(0)
