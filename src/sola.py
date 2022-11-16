@@ -38,7 +38,7 @@ class SolaEngine:
                 serial.Serial(port=self.comport, baudrate=9600)
 
             self.sendInitCode()
-        except serial.SerialException as e:
+        except Exception as e:
             print(e)
             raise(ConnectionError("Could not connect to the sola engine"))
 
