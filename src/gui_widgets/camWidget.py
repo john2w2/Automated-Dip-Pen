@@ -9,7 +9,7 @@ sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
 from time import sleep
 from tkinter import ttk
 from threading import Thread
-from camera import Camera
+from orcaFlash import OrcaFlashV2
 
 from PIL import ImageTk, Image
 from tkinter import messagebox
@@ -71,7 +71,7 @@ class CamWidget(tk.Frame):
 
         buttonFrame.pack()
 
-        self.cam: Camera = camObj
+        self.cam: OrcaFlashV2 = camObj
         self.lose = True
 
     def incZoom(self):

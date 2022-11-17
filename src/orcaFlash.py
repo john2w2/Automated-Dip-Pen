@@ -4,9 +4,10 @@ import math
 from pymmcore_plus import CMMCorePlus
 import cv2
 
-from skimage.draw import line_aa # can draw lines with this instead of cv
+from deviceInterfaces.camera import Camera
 
-class Camera:
+
+class OrcaFlashV2(Camera):
     def __init__(self, configPath="Coolsnap.cfg"):
         # configPath = "MMConfig_ham.cfg"
         mm_dir = "C:\Program Files\Micro-Manager-2.0"
@@ -79,7 +80,6 @@ class Camera:
         :param exposure: exposure (ms)
         :type exposure: float
         """
-
         self.mmc.setExposure(exposure)
 
     def setGain(self, gain: float):
@@ -123,6 +123,7 @@ class Camera:
         # rv, cv, valv = line_aa( numRows // 2 - crossLen // 2 , numCols // 2, numRows // 2 + crossLen // 2 , numCols // 2)
         # rh, ch, valh = line_aa(numRows // 2, 0 , numRows // 2, numCols - 1)
 
+        # cv2.line
         cv2.line(img, (0, numRows//2), (numCols, numRows//2), crossColor, crossWidth)
         cv2.line(img, (numCols//2, 0), (numCols//2, numRows), crossColor, crossWidth)
 
