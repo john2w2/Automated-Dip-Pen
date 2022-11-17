@@ -21,28 +21,25 @@ class Camera(abc.ABC):
     """
 
     @abc.abstractmethod
-    def __init__(self, configName: str, mmPath: str):
+    def __init__(self):
         """
         Instantiates a camera with the given config file
         Does not actually connect to the camera
 
-        :param configName: name of the *.cfg file
-            for the current Camera
-        :type configPath: str
-
-        :param mmPath: absolute path to the micromanager
-            directory
-            (e.g. "C:\\Program Files\\Micro-Manager-2.0")
-        :type mmPath: str
-        :raises ValueError: if the mmPath directory or
-            configName file don't exist
+        :raises ValueError: if any files (from micromanager)
+        related to the specific Camera don't exist
         """
+
+        # all cameras share this
+        self.mmPath = "C:\Program Files\Micro-Manager-2.0"
         pass
 
     @abc.abstractmethod
     def connect(self) -> None:
         """
         Connect to the camera via micromanager
+        Does nothing if already connected
+
         :raises ConnectionError: if unable to
             connect to the camera
         """
@@ -75,6 +72,7 @@ class Camera(abc.ABC):
 
         :rtype: bool
         """
+        pass
 
     @abc.abstractmethod
     def isConencted(self) -> bool:
@@ -85,6 +83,7 @@ class Camera(abc.ABC):
 
         :rtype: bool
         """
+        pass
 
     @abc.abstractmethod
     def getNextFrame(self) -> numpy.ndarray | None:
@@ -96,15 +95,29 @@ class Camera(abc.ABC):
             is not in sequenceAcquisition mode
         :rtype: numpy.ndarray | None
         """
+        pass
+
+    @abc.abstractmethod
+    def setExposure(self, exposure: float) -> None:
+        """
+        Sets the camera exposure (in ms)
+        Exposures <0 will be clipped to 0
+
+        :param exposure: exposure (ms)
+        :type exposure: float
+        """
+        pass
 
     @abc.abstractmethod
     def getNumWaitingFrames(self):
         """
-        Return the number
-        of images stored internally
+        Return the number of images stored 
+        internally
+
         Note: camera storage is circular,
         meaning the number of stored images is
-        not limitless, and restarts
+        not limitless, and restarts from 0 after
+        exceeding a certain amount.
         """
         pass
 
