@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 from pymmcore_plus import CMMCorePlus
 
 from deviceInterfaces.camera import Camera
@@ -80,3 +81,4 @@ class OrcaFlashV2(Camera):
         # reset mmc
         if self.connected:
             self.reset()
+        print("[INFO]: cam object deleted", file=sys.stderr)
