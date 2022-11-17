@@ -1,8 +1,5 @@
-from multiprocessing.sharedctypes import Value
 import tkinter as tk
 import sys
-
-import cv2
 
 sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
 from orcaFlash import OrcaFlashV2
@@ -1255,7 +1252,7 @@ class AdditionalCommands(ttk.LabelFrame):
         if not self.camOpen:
             try:
                 # self.camera=Camera()
-                self.camera=OrcaFlashV2(configPath="MMConfig_ham.cfg")
+                self.camera=OrcaFlashV2()
                 cameraWin = tk.Toplevel(root)
                 cameraWin.title("Camera Display")
                 self.cw = CamWidget(cameraWin, self.camera)

@@ -7,8 +7,8 @@ class Camera(abc.ABC):
     An Interface for a camera. Cameras connect
     to a microscope camera via micromanager and
     are responsible for acquiring sequences of
-    images and providing the client with those
-    images
+    images and allowing the client to access
+    those images
 
     To be able to retrieve images from the camera,
     it must be running sequence acquisition from
@@ -19,7 +19,6 @@ class Camera(abc.ABC):
     possible to run multiple cameras in parallel
     at this time.
     """
-
     @abc.abstractmethod
     def __init__(self):
         """
@@ -29,8 +28,6 @@ class Camera(abc.ABC):
         :raises ValueError: if any files (from micromanager)
         related to the specific Camera don't exist
         """
-        # all cameras share this
-        self.mm_path = "C:\\Program Files\\Micro-Manager-2.0"
         pass
 
     @abc.abstractmethod
@@ -74,7 +71,7 @@ class Camera(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def is_conencted(self) -> bool:
+    def is_connected(self) -> bool:
         """
         Returns whether or not the camera
         object is connected to the physical

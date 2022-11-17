@@ -2,6 +2,7 @@ from math import ceil
 from multiprocessing.sharedctypes import Value
 import tkinter as tk
 import sys
+from utils.camera_utils import *
 
 import cv2
 sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
@@ -16,7 +17,7 @@ from tkinter import messagebox
 from skimage.transform import resize
 
 class CamWidget(tk.Frame):
-    def __init__(self, parent, camObj):
+    def __init__(self, parent, camObj: OrcaFlashV2):
         # camObj is the instantiated camera to take images from
         tk.Frame.__init__(self, parent)
 
@@ -73,6 +74,7 @@ class CamWidget(tk.Frame):
 
         self.cam: OrcaFlashV2 = camObj
         self.lose = True
+        self.gain: int = 1
 
     def incZoom(self):
         if self.zoomAmount < 90:
@@ -89,11 +91,11 @@ class CamWidget(tk.Frame):
     def setGain(self):
         gain = self.gainEnt.get()
         try:
-            gain = float(gain)
-            if gain < 0.5:
-                raise ValueError("gain must be greater than 0.5")
+            gain = int(gain)
+            if gain < 1:
+                raise ValueError("gain must be at least than 1")
 
-            self.cam.gain = gain
+            self.gain = gain
         except Exception as e:
             messagebox.showerror(title="bad gain input", message="Gain must be greater than 0.5")
 
@@ -103,7 +105,7 @@ class CamWidget(tk.Frame):
             exp = float(exp)
             if (exp < 0):
                 raise ValueError("exposure must be >= 1")
-            self.cam.setExposure(exp)
+            self.cam.set_exposure(exp)
         except Exception as e:
             messagebox.showerror(title="bad exposure input", message="please ensure you entered an integer >=1")
 
@@ -128,26 +130,23 @@ class CamWidget(tk.Frame):
             self.cambut["state"] = "disabled"
             self.stopbut["state"] = "normal"
 
-            self.cam.startAcquisition()
+            self.cam.connect()
+
+            self.cam.start_acquisition()
 
             cv2.namedWindow("feed", cv2.WINDOW_KEEPRATIO)
             cv2.resizeWindow("feed", 600, 600)
 
             while not self.stopCamThreads and cv2.getWindowProperty('feed', 0) >=0:
-                if self.cam.waitingImages() > 0:
+                if self.cam.get_num_waiting_frames() > 0:
 
-                    img = self.cam.getNextFrame()
-
-                    # if self.zoomIn: img = self.cam.cropToChannel(img)
-                    img = self.cam.zoomIn(img, self.zoomAmount)
-                    if self.drawCross: self.cam.drawCross(img, 
+                    img = self.cam.get_next_frame()
+                    img = zoom_by_percentage(img, self.zoomAmount)
+                    if self.drawCross: draw_cross(img, 
                         crossColor=2**16-1,
                         crossWidth= ceil(((100 - self.zoomAmount) / 100) * 5)   
                         )
-                    # TODO: make gain work???
-                    # if self.cam.gain != 1:
-                        # img = self.cam.scaleImage(img)
-                    self.cam.scaleImage(img)
+                    apply_gain(img, self.gain)
                     imageRect = cv2.getWindowImageRect("feed")
 
                     # if user resizes window into non-square
@@ -163,9 +162,10 @@ class CamWidget(tk.Frame):
 
         except Exception as err:
             print(err)
-            # TODO: this pops up when camera is closed while feed is live
-            # actually, it shouldn't be an error since the camera is gonna be instantiated higher up
+                # TODO: this pops up when camera is closed while feed is live
+                # actually, it shouldn't be an error since the camera is gonna be instantiated higher up
             messagebox.showwarning(title="camera error", message="camera failed to load, please check that it's on and that the config file exists")
         finally:
             cv2.destroyAllWindows()
-            self.cam.stopAcquisition()
+            self.cam.stop_acquisition()
+            self.cam.reset()
