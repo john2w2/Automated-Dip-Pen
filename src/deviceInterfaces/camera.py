@@ -124,3 +124,11 @@ class Camera(abc.ABC):
         disconnecting device
         """
         pass
+
+    @abc.abstractmethod
+    def __del__(self):
+        """
+        Handle any cleanup related to the camera
+        (stop acquisition, disconnect from micromanager)
+        """
+        pass

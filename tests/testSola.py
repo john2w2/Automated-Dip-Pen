@@ -1,7 +1,6 @@
 import unittest
 import unittest.mock as mock
 import src.sola as sola
-from serial import SerialException
 
 
 class TestSolaMethods(unittest.TestCase):

@@ -1,11 +1,11 @@
-import os.path
 import numpy as np
-import math
 from pymmcore_plus import CMMCorePlus
-import cv2
 
 from deviceInterfaces.camera import Camera
 
+# exposure that the camera should have when it 
+# first turns on
+DEFAULT_EXPOSURE: float = 33.3 
 
 class OrcaFlashV2(Camera):
     """
@@ -26,9 +26,6 @@ class OrcaFlashV2(Camera):
 
         self.connected: bool = False
 
-        # current exposure(ms)
-        self.exposure: float = 0.0
-
         # to be connected to later
         self.mmc = None
 
@@ -37,8 +34,8 @@ class OrcaFlashV2(Camera):
         self.mmc = CMMCorePlus.instance(mm_path=self.mm_path)
 
         try:
-            self.mmc.loadSystemConfiguration(self.configPath)
-            self.mmc.setExposure(self.exposure)
+            self.mmc.loadSystemConfiguration(fileName=self.configPath)
+            self.mmc.setExposure(DEFAULT_EXPOSURE)
             self.connected: bool = True
         except Exception as e:
             raise e
@@ -67,11 +64,19 @@ class OrcaFlashV2(Camera):
         if exposure < 0.0:
             exposure = 0.0
 
-        self.exposure = exposure
-        self.mmc.setExposure(self.exposure)
+        self.mmc.setExposure(exposure)
 
     def get_num_waiting_frames(self):
         return self.mmc.getRemainingImageCount()
 
     def reset(self):
         self.mmc.reset()
+        self.connected = False
+
+    def __del__(self):
+        # stop acquisition (if acquiring)
+        if self.snapping:
+            self.stop_acquisition()
+        # reset mmc
+        if self.connected:
+            self.reset()
