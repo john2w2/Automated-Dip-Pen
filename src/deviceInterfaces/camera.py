@@ -30,6 +30,15 @@ class Camera(abc.ABC):
         """
         pass
 
+    def __new__(cls):
+        """
+        Override __new__ to make this a singleton
+        class        
+        """
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(Camera, cls).__new__(cls)
+        return cls.instance
+
     @abc.abstractmethod
     def connect(self) -> None:
         """
