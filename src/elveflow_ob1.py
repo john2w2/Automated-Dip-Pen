@@ -18,17 +18,20 @@ class ElveflowOB1(PressureSystem):
     Channels 1-2 are rated for 0 to 2000 mbar
     Channels 3-4 are rated for -1000 to 1000 mbar
     Almost all methods will return error codes, read through the Elveflow SDK for more info on that if you want
+
+    NOTE: despite this being a mult-channel device, we will only control one 
+    channel (DEF_CHANNEL)
     """
     def __init__(self, calibrate: bool=False):
         """
         Constructor for OB1
-        :param NI_ID: The device ID for OB1 found in the NI MAX software.
         :param calibrate: Set true to run calibration at startup. Calibration should be done at first time startup.
                             Calibration data will be saved to a certain path, but feel free to modify. 
                             Further testing should be done to see if calibration has to be done every time the device
                             starts up. As of now, it seems like it would be a good idea to do it at every startup.
-        :param cal_path: path to save calibration data to
         """
+        self.DEF_CHANNEL: int = 3 # the default channel to control
+        # this device's unique id, used when connecting to it
         self.NI_ID = "01CF6A56"
         # change file path
         parentDir = pathlib.Path(__file__).parent.resolve()
@@ -38,7 +41,7 @@ class ElveflowOB1(PressureSystem):
         self.error = OB1_Initialization(self.NI_ID.encode("ascii"), 2, 2, 4, 4, byref(self.instr_ID))
         if self.error != 0:
             print(self.error)
-            print(NI_ID)
+            print(self.NI_ID)
             print("Device connection failed")
             return None
         else:
@@ -65,34 +68,62 @@ class ElveflowOB1(PressureSystem):
         print("Calibration Completed")
         # return error
 
-    def set_pressure(self, pressure: float, channel: int=0) -> None:
+    def set_pressure(self, pressure: float) -> None:
         """
-        sets pressure to channel
-        :param channel: which channel (1-4) to set pressure for. Channels 1-2 handle 0 to 2000 mbar, while
-                        channels 3-4 can handle -1000 to 1000 mbar
+        Sets the pressure of the default channel
         :param pressure: set pressure in mbar
         :return: error code
         """
-        error = OB1_Set_Press(self.instr_ID.value, channel, pressure, byref(self.calibration_array), 1000)
+        error = OB1_Set_Press(
+            self.instr_ID.value,
+            self.DEF_CHANNEL,
+            pressure,
+            byref(self.calibration_array),
+            1000
+            )
         # return error
     
+    def set_pressure_on_channel(self, pressure:float, channel: int):
+        """
+        Sets the pressure for a specific channel
+        only used internally
+
+        :param pressure: pressure (mbar)
+        :type pressure: float
+        :param channel: channel to set pressure on
+        :type channel: int
+        """
+        OB1_Set_Press(
+            self.instr_ID.value,
+            channel,
+            pressure,
+            byref(self.calibration_array),
+            1000
+            )
+
     def reset_pressure(self) -> None:
         """
         set all channel pressures to 0
         """
-        self.set_pressure(1,0)
-        self.set_pressure(2,0)
-        self.set_pressure(3,0)
-        self.set_pressure(4,0)
+        self.set_pressure_on_channel(0, 1)
+        self.set_pressure_on_channel(0, 2)
+        self.set_pressure_on_channel(0, 3)
+        self.set_pressure_on_channel(0, 4)
 
-    def get_pressure(self,channel: int=0) -> float:
+    def get_pressure(self) -> float:
         """
-        gets pressure of channel in mbar
-        :param channel: select channel
-        :return: channel pressure in mbar
+        gets pressure (in mbar) of the default
+        channel
         """
         pressure = c_double()
-        OB1_Get_Press(self.instr_ID.value, channel, 1, byref(self.calibration_array), byref(pressure), 1000)
+        OB1_Get_Press(
+            self.instr_ID.value,
+            self.DEF_CHANNEL,
+            1,
+            byref(self.calibration_array),
+            byref(pressure),
+            1000
+            )
         return pressure.value
 
     def close(self):

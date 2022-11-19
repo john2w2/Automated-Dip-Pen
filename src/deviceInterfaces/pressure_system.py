@@ -8,10 +8,10 @@ class PressureSystem(abc.ABC):
     that is able to control the pressure 
     of the printer head. 
 
-    A pressure system has one or more 'channels',
-    which independently apply pressure to whatever
-    the channel is connected to
-
+    A pressure system is able
+    to drive some pressure through a single channel.
+    A pressure system does NOT have the functionality
+    to control multiple different channels 
     """
 
     @abc.abstractmethod
@@ -34,7 +34,7 @@ class PressureSystem(abc.ABC):
         """
 
     @abc.abstractmethod
-    def set_pressure(self, pressure: float, channel: int = 0) -> None:
+    def set_pressure(self, pressure: float) -> None:
         """
         Sets the pressure to the desired pressure 
 
@@ -53,7 +53,7 @@ class PressureSystem(abc.ABC):
         """
 
     @abc.abstractmethod
-    def get_pressure(self, channel: int=0) -> float:
+    def get_pressure(self) -> float:
         """
         Gets the pressure for the given channel.
 
