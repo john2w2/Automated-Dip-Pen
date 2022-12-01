@@ -30,6 +30,7 @@ class OrcaFlashV2(Camera):
         # to be connected to later
         self.mmc = None
 
+
     def connect(self) -> None:
         # Get an instance of mmc
         self.mmc = CMMCorePlus.instance(mm_path=self.mm_path)

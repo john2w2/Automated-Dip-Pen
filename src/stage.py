@@ -358,8 +358,7 @@ class Stage:
             pass
 
     def close(self):
-        """Close serial connection
-        """
+        """Close serial connection"""
         self.ser.close()
 
     def loadPrevOffset(self):
