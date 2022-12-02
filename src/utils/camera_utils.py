@@ -1,6 +1,10 @@
 from math import ceil
 import numpy as np
 import cv2
+from deviceInterfaces.camera import Camera
+from PIL import Image
+import datetime
+import os
 
 """
 A collection of utility functions for
@@ -70,3 +74,28 @@ def draw_cross(img, crossColor=255, crossWidth=5) -> np.array:
 
     cv2.line(img, (0, numRows//2), (numCols, numRows//2), crossColor, crossWidth)
     cv2.line(img, (numCols//2, 0), (numCols//2, numRows), crossColor, crossWidth)
+
+def save_image_from_camera(camera: Camera, 
+    gain:int,
+    parent_dir: str = "C:\\Users\\19199\\Desktop\\automated-sca\\development\\ValueStorage\\images") -> None:
+    if camera.is_acquiring():
+        im = camera.get_next_frame()
+        apply_gain(im, gain=gain)
+        pilim = Image.fromarray(im)
+        current_time = get_date_str(date_as_dir=False)
+        file_name = current_time + ".tiff"
+        file_path = os.path.join(parent_dir, file_name)
+        pilim.save(file_path)
+    else:
+        raise ValueError("Camera is not acquiring, cannot save image")
+        
+def get_date_str(date_as_dir: bool = True) -> str:
+    currentTime = datetime.datetime.now()
+    if not date_as_dir:
+        currentTimeRounded: str = currentTime.__str__().split(".")[0]
+        currentTimeFormatted = currentTimeRounded.replace("-", "_").replace(" ", "_").replace(":", "_")
+        return currentTimeFormatted
+    else:
+        directory: str = currentTime.date().__str__().replace("-", "_")
+        time: str = currentTime.time().__str__().split(".")[0].replace(":", "_")
+        return directory + "\\" + time

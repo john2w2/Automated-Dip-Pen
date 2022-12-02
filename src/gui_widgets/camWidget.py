@@ -70,11 +70,22 @@ class CamWidget(tk.Frame):
         gainBtn.grid(row=0, column=1)
         gainFrame.grid(row=1, column=1)
 
+        saveBtn = ttk.Button(buttonFrame, text="save image as tiff", command=self.saveImage)
+        saveBtn.grid(row=1, column=2)
+
+
         buttonFrame.pack()
+
 
         self.cam: OrcaFlashV2 = camObj
         self.lose = True
         self.gain: int = 1
+
+    def saveImage(self):
+        try:
+            save_image_from_camera(self.cam, self.gain)
+        except:
+            print("failed to save, probably not acquiring")
 
     def incZoom(self):
         if self.zoomAmount < 90:

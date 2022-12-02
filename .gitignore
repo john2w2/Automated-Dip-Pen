@@ -130,3 +130,6 @@ dmypy.json
 
 .vscode
 .idea
+
+# Images taken during experiments
+images/
