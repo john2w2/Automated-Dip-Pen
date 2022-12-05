@@ -1,5 +1,4 @@
 from math import ceil
-from multiprocessing.sharedctypes import Value
 import tkinter as tk
 import sys
 from utils.camera_utils import *
@@ -7,14 +6,14 @@ from utils.camera_utils import *
 import cv2
 sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
 
-from time import sleep
 from tkinter import ttk
 from threading import Thread
 from orcaFlash import OrcaFlashV2
 
-from PIL import ImageTk, Image
 from tkinter import messagebox
-from skimage.transform import resize
+from tkinter import filedialog
+
+
 
 class CamWidget(tk.Frame):
     def __init__(self, parent, camObj: OrcaFlashV2):
@@ -73,7 +72,6 @@ class CamWidget(tk.Frame):
         saveBtn = ttk.Button(buttonFrame, text="save image as tiff", command=self.saveImage)
         saveBtn.grid(row=1, column=2)
 
-
         buttonFrame.pack()
 
 
@@ -81,10 +79,13 @@ class CamWidget(tk.Frame):
         self.lose = True
         self.gain: int = 1
 
+
     def saveImage(self):
+        fileName = filedialog.asksaveasfilename(filetypes = (("TIFF Files","*.tiff"),))
         try:
-            save_image_from_camera(self.cam, self.gain)
-        except:
+            save_image_from_camera(self.cam, self.gain, fileName=fileName)
+        except Exception as e:
+            print(e)
             print("failed to save, probably not acquiring")
 
     def incZoom(self):

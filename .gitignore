@@ -133,3 +133,6 @@ dmypy.json
 
 # Images taken during experiments
 images/
+
+# Data from tSNE development
+development/DataAnalysis/data/

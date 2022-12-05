@@ -77,15 +77,18 @@ def draw_cross(img, crossColor=255, crossWidth=5) -> np.array:
 
 def save_image_from_camera(camera: Camera, 
     gain:int,
+    fileName:str,
     parent_dir: str = "C:\\Users\\19199\\Desktop\\automated-sca\\development\\ValueStorage\\images") -> None:
     if camera.is_acquiring():
         im = camera.get_next_frame()
         apply_gain(im, gain=gain)
         pilim = Image.fromarray(im)
-        current_time = get_date_str(date_as_dir=False)
-        file_name = current_time + ".tiff"
-        file_path = os.path.join(parent_dir, file_name)
-        pilim.save(file_path)
+        # current_time = get_date_str(date_as_dir=False)
+        # file_name = current_time + ".tiff"
+        # file_path = os.path.join(parent_dir, file_name)
+        if len(fileName.split(".tiff")) != 2:
+            fileName += ".tiff"
+        pilim.save(fileName)
     else:
         raise ValueError("Camera is not acquiring, cannot save image")
         
