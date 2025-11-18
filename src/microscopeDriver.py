@@ -104,6 +104,19 @@ class MicroscopeDriver:
         """
         self.microscope.saveFirstWellLocation()
 
+    def saveFiducialCamPos(self):
+        """Saves the current stage position as the
+        position such that the spot is
+        focused on the + of the camera
+        """
+        self.microscope.saveFiducialLocation()
+
+    def savePenstagePos(self):
+        """Saves the current stage position as the
+        position such that the pen is centered with
+        the fiducial marker by eyes
+        """
+        self.microscope.savePenLocation()
 
     def saveOffset(self, offsetX: int, offsetY: int):
         """
@@ -865,9 +878,17 @@ class MicroscopeDriver:
 
         # TODO: different behaviors for nothing vs something:
             # nothing should do an additional first step: suck in ethanol
+
+
+        #NOTE: FOR MOCKING ONLY
+        def fakecb(): x=3
         print("cleaning out the head")
-        sleep(4)
+        self.__grabSample(self.microscope.currentSample, fakecb)
+        self.__grabSample("B3", fakecb)
         print("done cleaning out head")
+        # print("cleaning out the head")
+        # sleep(4)
+        # print("done cleaning out head")
         cb()
 
     def grabSample(self, wellID: str, cb):
@@ -902,8 +923,8 @@ class MicroscopeDriver:
         # additional logic to clean out the current sample if necessary
         def fakeCB(): x=3
         # TODO: if we're already holding sample from wellID should we still replace it?
-        if self.microscope.currentSample != self.microscope.chip.CHAN_EMPTY:
-            self.__cleanOutHead(fakeCB)
+        # if self.microscope.currentSample != self.microscope.chip.CHAN_EMPTY:
+        #     self.__cleanOutHead(fakeCB)
 
         if self.__checkInterrupt(cb):return
 

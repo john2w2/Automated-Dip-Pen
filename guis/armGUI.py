@@ -3,7 +3,7 @@ import sys
 
 from tkinter import ttk
 from tkinter import messagebox
-sys.path.append("C:\\Users\\19199\\Desktop\\automated-sca\\src")
+sys.path.append("C:\\Users\\NikonTE300CE\\Desktop\\automated-sca\\src")
 from arm import Arm
 from threading import Thread
 
@@ -16,7 +16,7 @@ arm: Arm = None
 def connect():
     global arm
     try:
-        arm = Arm(arduinoPort="COM7")
+        arm = Arm(arduinoPort="COM5")
         startBtn["state"] = "disabled"
         calibBtn["state"] = "normal"
     except:

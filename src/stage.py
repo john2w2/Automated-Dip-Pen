@@ -59,8 +59,8 @@ class Stage:
         """Saves the printer offset values
 
         Printer offset = (offsetX, offsetY) = relative distance to move from point A to point B
-        A = location of some point under camera view
-        B = same location, under printer head
+        A = location of fiducial marker under camera view
+        B = location of fiducial marker under printer head
 
         Offset values come from GUI calibration method
 
@@ -75,7 +75,9 @@ class Stage:
             offsetY = printerDropY - focusedDropY
         :type offsetY: int
         """
-        self.printerOffset = (offsetX, offsetY)
+        self.pen_offset_xy = [self.fiducialCamPos - self.penPos for self.fiducialCamPos, self.penPos in zip(self.fiducialCamPos, self.penPos)]
+        offsetX = self.pen_offset_xy[0]
+        offsetY = self.pen_offset_xy[1]
         self.saveNewOffset(offsetX, offsetY)
 
     def calibOrigin(self):
@@ -89,15 +91,15 @@ class Stage:
         # NOTE: now, have user use joystick to move stage to real origin
         self.writeRead("P,0,0,0")  # Redefine this location as origin
 
-    def calibFirstWellCamPos(self, stagePos: tuple):
+    def calibFirstWellCamPos(self):
         # TODO: can we call self.getStageXY() here?
-        """Save stage coordinates for well A1 under camera
+        """Save stage coordinates for well A1 when user moves well A1 under the pen
 
-        :param stagePos: Stage coordinates for when first well is under CAMERA
+        :param stagePos: Stage coordinates for location of first well under pen
         :type stagePos: tuple
         """
-        self.firstWellCamPos = stagePos
-        self.saveNewFirstWellPos(stagePos=stagePos)
+        self.firstWellCamPos = self.getStageXY()  # Stage coordinates for location of first well
+        self.saveNewFirstWellPos(stagePos=self.getStageXY())
         # Stage coordinates for first well under printer head
         # self.firstWellPos = (
         #     stagePos[0]+self.printerOffset[0], stagePos[1]+self.printerOffset[1])
@@ -110,9 +112,28 @@ class Stage:
         stagePos = self.getStageXY()  # Stage coordinates for location of first channel under camera
         self.firstChannelCamPos = tuple(stagePos)
         self.saveNewFirstChannel(stagePos=stagePos)
+        # return stagePos
         # self.firstChannelPos = (
         #     stagePos[0]+self.printerOffset[0], stagePos[1]+self.printerOffset[1])
 
+    def calibFiducialCamPos(self):
+        """Calibrate location of fiducial marker under the camera
+
+        :param stagePos: Stage coordinates for location of fiducial marker
+        :type stagePos: tuple
+        """
+        fiducialCamPos = self.getStageXY()
+        self.fiducialCamPos = tuple(fiducialCamPos)
+    
+    def calibPenPos(self):
+        """Calibrate location of pen
+
+        :param stagePos: Stage coordinates for location of pen is centered with the fiducial marker
+        :type stagePos: tuple
+        """
+        penPos = self.getStageXY()
+        self.penPos = tuple(penPos)
+    
     def moveToOrigin(self):
         """Move to origin
         """

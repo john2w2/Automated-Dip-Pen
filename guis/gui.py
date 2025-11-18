@@ -1,14 +1,19 @@
 import tkinter as tk
 import sys
 
-sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
-from orcaFlash import OrcaFlashV2
+sys.path.append(r"C:\Users\NikonTE300CE\Desktop\automated-sca\src")
+from coolSnapHQ2 import CoolSnapHQ2
 
 from tkinter import ttk
 from tkinter import messagebox
 from time import sleep
+import time
+import threading
 from threading import Thread
 from microscopeDriver import MicroscopeDriver
+from stage import *
+from stepper import *
+from arm import *
 from gui_widgets.camWidget import CamWidget
 from gui_widgets.wellSelect import WellSelect
 
@@ -109,12 +114,12 @@ class HighLevel(ttk.LabelFrame):
             self.priorLab = ttk.Label(portFrame, text="Prior port")
             grid(self.priorLab, 0,0,0,0)
             self.priorEnt = ttk.Entry(portFrame)
-            self.priorEnt.insert(0, "COM6")
+            self.priorEnt.insert(0, "COM4")
             grid(self.priorEnt, 0,1,0,0)
             self.ardLab = ttk.Label(portFrame, text="Arduino port")
             grid(self.ardLab, 1,0,0,0)
             self.ardEnt = ttk.Entry(portFrame)
-            self.ardEnt.insert(0, "COM3")
+            self.ardEnt.insert(0, "COM5")
             grid(self.ardEnt, 1,1,0,0)
             grid(portFrame, 0,0,5,5)
 
@@ -207,7 +212,7 @@ class SingleToMultiple(ttk.LabelFrame):
         self.s2mChanEntry["state"] = "disabled"
         grid(self.s2mChanEntry, 3, 0, 0, 5, sticky='ew')
 
-        goBtn = ttk.Button(self, text="start")
+        goBtn = ttk.Button(self, text="start", command=self.printSingleToMultiple)
         grid(goBtn, 4, 0, 0,0)
 
         for child in self.winfo_children(): ARM_ENABLES.append(child)
@@ -239,7 +244,7 @@ class PrintEachToK(ttk.Labelframe):
         self.openWellsBtn = ttk.Button(self, text="open well select menu", cursor="hand2", command=self.openWellSelectMenu)
         grid(self.openWellsBtn, 0, 0, 5, 5)
 
-        self.selectedWellsList = ttk.Label(self, text="selected wells:", font=("Roboto Mono","10"))
+        self.selectedWellsList = ttk.Label(self, text="Selected wells:", font=("Roboto Mono","10"))
         grid(self.selectedWellsList, 1, 0, 5, 5)
 
         kLabel = ttk.Label(self, text="number of channels for each sample")
@@ -248,9 +253,10 @@ class PrintEachToK(ttk.Labelframe):
         self.kEnt = ttk.Entry(self)
         grid(self.kEnt, 3, 0, 5, 5)
 
-        goBtn = ttk.Button(self, text="start")
+        goBtn = ttk.Button(self, text="start", command=self.printToK)
         grid(goBtn, 4, 0, 0,0)
 
+        self.chosenWells = []
         for child in self.winfo_children(): ARM_ENABLES.append(child)
 
     def openWellSelectMenu(self):
@@ -280,15 +286,27 @@ class PrintEachToK(ttk.Labelframe):
         self.wellEnt = selected
         enIter = iter(self.wellEnt)
         wrapped = ""
+        self.chosenWells = selected
         for i in range(len(self.wellEnt)):
             if i % 10 == 9: wrapped += '\n'
             wrapped += next(enIter) + ' '
         self.selectedWellsList.config(text=f"selected wells: {wrapped}")
 
     def printToK(self):
-        # TODO: implement this
-        # get well entries
-        pass
+        def cb():
+            interruptBtn["state"] = "disabled"
+            for btn in STARTUP_DISABLED_BUTTONS: btn["state"] = "normal"
+
+        k = self.kEnt.get()
+        try:
+            wells = self.chosenWells
+            print(wells)
+            for btn in STARTUP_DISABLED_BUTTONS: btn["state"] = "disabled"
+            interruptBtn["state"] = "normal"
+
+            driver.printSamplesToK(wells, k, cb)
+        except Exception as e:
+            messagebox.showerror(title="something went wrong", message=str(e))
 
 class CalibrationFrame(ttk.LabelFrame):
     def __init__(self, parent):
@@ -350,29 +368,36 @@ class CalibrationFrame(ttk.LabelFrame):
 class CalibrationMenu(ttk.Frame):
     def __init__(self, parent):
         ttk.Frame.__init__(self, parent)
-        for i in range(10): self.rowconfigure(i, weight=1)
+        # --- Configure rows and columns ---
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
+        # only give lower rows weight so the button row stays compact
+        for i in range(10):
+            self.rowconfigure(i, weight=0)
+        self.rowconfigure(1, weight=1)  # stage calibration expands
+        self.rowconfigure(2, weight=1)
+        self.rowconfigure(3, weight=1)
+
         self.buttons = []
 
-        self.calibArmBtn = ttk.Button(self, text="calibrate arm Z axis\n(move to top limit switch)", command=self.calibArm)
-        self.calibArmBtn.grid(row=0, column=0, rowspan=1, sticky='nsew', padx=5, pady=5)
+        self.calibArmBtn = ttk.Button(self, text="calibrate arm Z axis", command=self.calibArm)
+        self.calibArmBtn.grid(row=0, column=0,columnspan=2, sticky='ew', padx=5, pady=(5,0))
         self.buttons.append(self.calibArmBtn)
 
         stageCal = self.StageCalibration(self, self.buttons)
-        stageCal.grid(row=1, column=0, rowspan=1,padx=5, pady=5, sticky='nsew')
-
-        printDrop = self.PrintDropTest(self, self.buttons)
-        printDrop.grid(row=0, column=1, rowspan=3, padx=5, pady=5, sticky='nsew')
+        stageCal.grid(row=1, column=0, rowspan=1, padx=5, pady=5, sticky='nsew')
 
         getSample = self.ManualGetSample(self, self.buttons)
-        getSample.grid(row=3, column=0, rowspan=1, sticky='nsew', padx=5, pady=5)
-  
-        pressureCal = self.PressureCalibration(self, self.buttons)
-        pressureCal.grid(row=2, column=0, rowspan=1, sticky='nsew', padx=5, pady=5)
+        getSample.grid(row=2, column=0, rowspan=1, sticky='nsew', padx=5, pady=5)
 
         armPos = self.ArmPositions(self, self.buttons)
-        armPos.grid(row=3, column=1, sticky='nsew')
+        armPos.grid(row=1, column=1, sticky='nsew')
+
+        printDrop = self.PrintDropTest(self, self.buttons)
+        printDrop.grid(row=2, column=1, rowspan=2, padx=5, pady=5, sticky='nsew')
+  
+        # pressureCal = self.PressureCalibration(self, self.buttons)
+        # pressureCal.grid(row=2, column=0, rowspan=1, sticky='nsew', padx=5, pady=5)
 
         for item in self.buttons: item["state"] = "disabled" if CALIB_DICT["arm"].cget('text') != f"arm: {CALIBRATED}" else "normal"
         self.calibArmBtn["state"] = "normal"
@@ -398,41 +423,41 @@ class CalibrationMenu(ttk.Frame):
         def __init__(self, parent, calibButtons):
             # TODO: somehow need to load these from a file to fill entries
             # or a button that pops up a window that will list them out
-            ttk.LabelFrame.__init__(self, parent, text="Save arm Positions (mm)")
-            description = ttk.Label(self, text=" Positions of arm, measured in mm from the top of the \n motor mount to the top limit switch's lever")
+            ttk.LabelFrame.__init__(self, parent, text="Save arm Heights (mm)")
+            description = ttk.Label(self, text=" Heights of arm, measured in mm after the motor triggers to the optical endstop. \n Please enter a negative value for all positions (e.g. -10.5)")
             description.grid(row=0, column=0, columnspan=3, sticky='nsew')
 
             self.calibButtons = calibButtons
 
             # grid(description, 0, 0, 5, 5)
             self.upEnt = ttk.Entry(self)
-            saveUpBtn = ttk.Button(self, text="save 'safe' position", command=self.saveSafe)
+            saveUpBtn = ttk.Button(self, text="save 'safe' height", command=self.saveSafe)
             grid(self.upEnt, 1, 0, 5, 5)
             grid(saveUpBtn, 1, 1, 5, 5)
 
             self.chipEnt = ttk.Entry(self)
-            saveChipBtn = ttk.Button(self, text="save 'above chip' position", command=self.saveChip)
+            saveChipBtn = ttk.Button(self, text="save 'spot chip' height", command=self.saveChip)
             grid(self.chipEnt, 2, 0, 5, 5)
             grid(saveChipBtn, 2, 1, 5, 5)
 
             self.wellEnt = ttk.Entry(self)
-            saveWellBtn = ttk.Button(self, text="save 'in well' position", command=self.saveWell)
+            saveWellBtn = ttk.Button(self, text="save 'in well' height", command=self.saveWell)
             grid(self.wellEnt, 3, 0, 5, 5)
             grid(saveWellBtn, 3, 1, 5, 5)
 
-            moveMMFrame = ttk.LabelFrame(self, text="move to absolute position (mm)")
+            moveMMFrame = ttk.LabelFrame(self, text="move to absolute height (mm) (negative)")
             # entry. go button
             self.mmEnt = ttk.Entry(moveMMFrame)
             self.mmEnt.insert(0, "0")
             grid(self.mmEnt, 0, 0, 0, 0)
-            goMMBtn = ttk.Button(moveMMFrame, text="move to absolute position (mm)", command=self.moveToMM)
+            goMMBtn = ttk.Button(moveMMFrame, text="move to absolute height (a negative mm)", command=self.moveToMM)
             grid(goMMBtn, 0, 1, 0, 0)
             moveMMFrame.grid(row=4, column=0, columnspan=2, sticky='nsew')
 
-            showSavedBtn = ttk.Button(self, text="show saved positions", command=self.showSavedPositions)
+            showSavedBtn = ttk.Button(self, text="show saved heights", command=self.showSavedPositions)
             showSavedBtn.grid(row=5, column=0, columnspan=2, sticky='nsew')
 
-            showCurrentBtn = ttk.Button(self, text="show current position of arm", command=self.showCurrentPosition)
+            showCurrentBtn = ttk.Button(self, text="show current heights of arm", command=self.showCurrentPosition)
             showCurrentBtn.grid(row=6, column=0, columnspan=2, sticky='nsew')
 
             calibButtons.extend([self.upEnt, saveUpBtn, self.chipEnt, saveChipBtn, self.wellEnt, saveWellBtn, self.mmEnt, goMMBtn, showSavedBtn, showCurrentBtn])
@@ -491,20 +516,40 @@ class CalibrationMenu(ttk.Frame):
     class StageCalibration(ttk.LabelFrame):
         def __init__(self, parent, calibButtons):
             ttk.Labelframe.__init__(self, parent, text="Stage Calibration")
-            # self.calibStageFrame = ttk.Labelframe(self, text="Positioning")
+            self.calibStageFrame = ttk.Labelframe(self, text="Positioning")
 
-            # resetStageLab = ttk.Label(self.calibStageFrame, text="move stage until it hits the bottom and right limit \n switches, then hit \n \"recalibrate stage positioning\"")
-            # grid(resetStageLab, 0, 0, 5, 5)
-            # self.resetStageBtn = ttk.Button(self.calibStageFrame, text="recalibrate stage positioning", command=self.resetStagePositioning)
-            # grid(self.resetStageBtn, 1,0,5,5)
+            resetStageLab = ttk.Label(self.calibStageFrame, text="use joystick to move stage until it reaches the bottom and right corner, then hit \"recalibrate stage positioning\"")
+            grid(resetStageLab, 0, 0, 5, 5)
 
-            # grid(self.calibStageFrame, 0, 0, 5, 5)
+            self.resetStageBtn = ttk.Button(self.calibStageFrame, text="recalibrate stage positioning", command=self.resetStagePositioning)
+            grid(self.resetStageBtn, 1,0,5,5)
 
-            self.firstChanBtn = ttk.Button(self, text="save current position as 'first channel on camera'", command=self.saveFirstChannelCamPos)
-            grid(self.firstChanBtn, 1, 0, 5, 5)
+            grid(self.calibStageFrame, 0, 0, 5, 5)
 
-            self.firstWellBtn = ttk.Button(self, text="save current position as 'first well centered on camera'", command=self.saveFirstWellCamPos)
-            grid(self.firstWellBtn, 2,0,5,5)
+            resetfirstwellLab = ttk.Label(self, text="Move stage and lower the Z arm using 'move to absolute height' under Save arm Heights (figure out 'safe' height and record) \nso that the pen is centered in the well (figure out 'safe' height and record), then hit \"save current position as 'first well'\"")
+            grid(resetfirstwellLab, 1, 0, 5, 5)
+
+            self.firstWellBtn = ttk.Button(self, text="save current position as 'first well'", command=self.saveFirstWellCamPos)
+            grid(self.firstWellBtn, 2, 0, 5, 5)
+
+            resetpenLab = ttk.Label(self, text="Move stage to where you want the automated spot calibration and lower the Z arm using 'move to absolute height' \n until pen slightly bend (record this for 'spot chip' height) and then hit  \"save current position as 'calibration spot'\"")
+            grid(resetpenLab, 3, 0, 5, 5)
+
+            self.penBtn = ttk.Button(self, text="save current position as 'pen location'", command=self.savePenstagePos)
+            grid(self.penBtn, 4, 0, 5, 5)
+
+            resetspotLab = ttk.Label(self, text="After automated spot calibration process, go back to 'Automated Single Cell Printing' tab and click 'open camera display'. \n Move the stage so that the crossmark is centered with the spot, \n then hit \"save current position to calculate 'pen offset'\"")
+            grid(resetspotLab, 5, 0, 5, 5)
+
+            self.spotBtn = ttk.Button(self, text="save current position as 'spot location'", command=self.savespotCamPos)
+            grid(self.spotBtn, 6, 0, 5, 5)
+
+            resetfirstchanLab = ttk.Label(self, text="Move stage so that the first channel is centered in the camera view, \n then hit \"save current position as 'first channel'\"")
+            grid(resetfirstchanLab, 7, 0, 5, 5)
+
+            self.firstChanBtn = ttk.Button(self, text="save current position as 'first channel'", command=self.saveFirstChannelCamPos)
+            grid(self.firstChanBtn, 8, 0, 5, 5)
+
             calibButtons.extend([self.firstChanBtn, self.firstWellBtn])
             # calibButtons.extend([self.resetStageBtn, self.firstChanBtn, self.firstWellBtn])
 
@@ -522,80 +567,93 @@ class CalibrationMenu(ttk.Frame):
             driver.saveFirstWellCamPos()
             CALIB_DICT["first well"].config(text=f"first well: {CALIBRATED}", background="#65d92b")
 
-    class PressureCalibration(ttk.LabelFrame):
-        def __init__(self, parent, calibButtons):
-            ttk.LabelFrame.__init__(self, parent, text="Pressure Calibration")
-            self.calibButtons = calibButtons
-            # recalibrate OB1
-            self.calOB1 = ttk.Button(self, text="recalibrate OB1 (make sure it's capped)", command=self.calibOB1)
-            # save the 3 pressure values
-            grid(self.calOB1, 0, 0, 5, 5)
-            self.pressureFrame = ttk.LabelFrame(self, text="Specify Pressure Values")
+        def savespotCamPos(self):
+            driver.saveFiducialCamPos()
+            CALIB_DICT["spot"].config(text=f"spot: {CALIBRATED}", background="#65d92b")
+        
+        def savePenstagePos(self):
+            driver.savePenstagePos()
+            CALIB_DICT["pen"].config(text=f"pen: {CALIBRATED}", background="#65d92b")
 
-            inPLab = ttk.Label(self.pressureFrame, text="In pressure")
-            self.inPEnt = ttk.Entry(self.pressureFrame)
-            self.inPEnt.insert(0, "-80.0")
-            grid(inPLab, 0, 0, 5, 0)
-            grid(self.inPEnt, 0, 1, 5, 0)
+        # def savepenOffset(self):
+        #     self.pen_offset_xy = [driver.saveFiducialCamPos - driver.savePenstagePos for driver.saveFiducialCamPos, driver.savePenstagePos in zip(driver.saveFiducialCamPos, driver.savePenstagePos)]
+        #     driver.saveOffset(self.pen_offset_xy[0], self.pen_offset_xy[1])
+        #     CALIB_DICT["printer offset"].config(text=f"printer offset: {CALIBRATED}", background="#65d92b")
 
-            inPDurLab = ttk.Label(self.pressureFrame, text="# of seconds to apply\nin pressure for")
-            self.inPSecEnt = ttk.Entry(self.pressureFrame)
-            self.inPSecEnt.insert(0, "3") # should match default value in pressure.py
-            grid(inPDurLab, 1, 0, 5, 5)
-            grid(self.inPSecEnt, 1, 1, 5, 0)
+    # class PressureCalibration(ttk.LabelFrame):
+    #     def __init__(self, parent, calibButtons):
+    #         ttk.LabelFrame.__init__(self, parent, text="Pressure Calibration")
+    #         self.calibButtons = calibButtons
+    #         # recalibrate OB1
+    #         self.calOB1 = ttk.Button(self, text="recalibrate OB1 (make sure it's capped)", command=self.calibOB1)
+    #         # save the 3 pressure values
+    #         grid(self.calOB1, 0, 0, 5, 5)
+    #         self.pressureFrame = ttk.LabelFrame(self, text="Specify Pressure Values")
 
-            eqPLab = ttk.Label(self.pressureFrame, text="Equilibrium pressure")
-            self.eqPEnt = ttk.Entry(self.pressureFrame)
-            self.eqPEnt.insert(0, "0")
-            grid(eqPLab, 2, 0, 5, 0)
-            grid(self.eqPEnt, 2, 1, 5, 0)
+    #         inPLab = ttk.Label(self.pressureFrame, text="In pressure")
+    #         self.inPEnt = ttk.Entry(self.pressureFrame)
+    #         self.inPEnt.insert(0, "-80.0")
+    #         grid(inPLab, 0, 0, 5, 0)
+    #         grid(self.inPEnt, 0, 1, 5, 0)
 
-            outPLab = ttk.Label(self.pressureFrame, text="Out pressure")
-            self.outPEnt = ttk.Entry(self.pressureFrame)
-            self.outPEnt.insert(0, "80.0")
-            grid(outPLab, 3, 0, 5, 0)
-            grid(self.outPEnt, 3, 1, 5, 0)
+    #         inPDurLab = ttk.Label(self.pressureFrame, text="# of seconds to apply\nin pressure for")
+    #         self.inPSecEnt = ttk.Entry(self.pressureFrame)
+    #         self.inPSecEnt.insert(0, "3") # should match default value in pressure.py
+    #         grid(inPDurLab, 1, 0, 5, 5)
+    #         grid(self.inPSecEnt, 1, 1, 5, 0)
 
-            outPDurLab = ttk.Label(self.pressureFrame, text="# of seconds to apply\nout pressure for")
-            self.outPSecEnt = ttk.Entry(self.pressureFrame)
-            self.outPSecEnt.insert(0, "3") # has to match default value in pressure.py
-            grid(outPDurLab, 4, 0, 5, 5)
-            grid(self.outPSecEnt, 4, 1, 5, 0)
+    #         eqPLab = ttk.Label(self.pressureFrame, text="Equilibrium pressure")
+    #         self.eqPEnt = ttk.Entry(self.pressureFrame)
+    #         self.eqPEnt.insert(0, "0")
+    #         grid(eqPLab, 2, 0, 5, 0)
+    #         grid(self.eqPEnt, 2, 1, 5, 0)
 
-            saveVals = ttk.Button(self.pressureFrame, text="Save pressure values", command=self.savePressures)
-            saveVals.grid(row=5, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
+    #         outPLab = ttk.Label(self.pressureFrame, text="Out pressure")
+    #         self.outPEnt = ttk.Entry(self.pressureFrame)
+    #         self.outPEnt.insert(0, "80.0")
+    #         grid(outPLab, 3, 0, 5, 0)
+    #         grid(self.outPEnt, 3, 1, 5, 0)
 
-            grid(self.pressureFrame, 1, 0, 5, 5)
+    #         outPDurLab = ttk.Label(self.pressureFrame, text="# of seconds to apply\nout pressure for")
+    #         self.outPSecEnt = ttk.Entry(self.pressureFrame)
+    #         self.outPSecEnt.insert(0, "3") # has to match default value in pressure.py
+    #         grid(outPDurLab, 4, 0, 5, 5)
+    #         grid(self.outPSecEnt, 4, 1, 5, 0)
 
-            calibButtons.extend([self.calOB1, self.inPEnt, self.eqPEnt, self.outPEnt, saveVals, self.outPSecEnt, self.inPSecEnt])
+    #         saveVals = ttk.Button(self.pressureFrame, text="Save pressure values", command=self.savePressures)
+    #         saveVals.grid(row=5, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
 
-        def calibOB1(self):
-            res = messagebox.askokcancel(title="recalibrate OB1", message="Are you sure you want to recalibrate the OB1? This takes about 3 minutes. Also, please don't run any other functions while calibration is happening")
-            if res:
-                driver.recalibrateOB1()
+    #         grid(self.pressureFrame, 1, 0, 5, 5)
 
-        def savePressures(self):
-            # check if inputs are valid
-            inP = self.inPEnt.get()
-            eqP = self.eqPEnt.get()
-            outP = self.outPEnt.get()
-            inPS = self.inPSecEnt.get()
-            outPS = self.outPSecEnt.get()
-            try:
-                inP = float(inP)
-                eqP = float(eqP)
-                outP = float(outP)
-                inPS = float(inPS)
-                outPS = float(outPS)
-                if (outPS < 0 or inPS < 0): messagebox.showerror(title="bad time input", message="Please use a positive number for time") 
+    #         calibButtons.extend([self.calOB1, self.inPEnt, self.eqPEnt, self.outPEnt, saveVals, self.outPSecEnt, self.inPSecEnt])
+
+    #     def calibOB1(self):
+    #         res = messagebox.askokcancel(title="recalibrate OB1", message="Are you sure you want to recalibrate the OB1? This takes about 3 minutes. Also, please don't run any other functions while calibration is happening")
+    #         if res:
+    #             driver.recalibrateOB1()
+
+    #     def savePressures(self):
+    #         # check if inputs are valid
+    #         inP = self.inPEnt.get()
+    #         eqP = self.eqPEnt.get()
+    #         outP = self.outPEnt.get()
+    #         inPS = self.inPSecEnt.get()
+    #         outPS = self.outPSecEnt.get()
+    #         try:
+    #             inP = float(inP)
+    #             eqP = float(eqP)
+    #             outP = float(outP)
+    #             inPS = float(inPS)
+    #             outPS = float(outPS)
+    #             if (outPS < 0 or inPS < 0): messagebox.showerror(title="bad time input", message="Please use a positive number for time") 
                 
-                driver.savePressures(inPressure=inP, eqPressure=eqP, outPressure=outP)
-                driver.microscope.printer.pressure.calibDurations(inPTime=inPS, outPTime=outPS) # TODO: add more functions to lower level classes if you want
+    #             driver.savePressures(inPressure=inP, eqPressure=eqP, outPressure=outP)
+    #             driver.microscope.printer.pressure.calibDurations(inPTime=inPS, outPTime=outPS) # TODO: add more functions to lower level classes if you want
 
-                CALIB_DICT["pressures"].config(text=f"pressures: {CALIBRATED}", background="#65d92b")
+    #             CALIB_DICT["pressures"].config(text=f"pressures: {CALIBRATED}", background="#65d92b")
 
-            except ValueError:
-                messagebox.showwarning(title="bad pressure input", message="please check your values")
+    #         except ValueError:
+    #             messagebox.showwarning(title="bad pressure input", message="please check your values")
 
     class ManualGetSample(ttk.LabelFrame):
         def __init__(self, parent, calibButtons):
@@ -706,212 +764,321 @@ class CalibrationMenu(ttk.Frame):
 
     class PrintDropTest(ttk.LabelFrame):
         def __init__(self, parent, calibButtons):
-            ttk.LabelFrame.__init__(self, parent, text="Test Printing Drops")
+            ttk.LabelFrame.__init__(self, parent, text="Automated Spot Calibration")
             self.columnconfigure(0, weight=1)
             self.calibButtons = calibButtons
+            self.zm = ZMotor
+            self.s = Stage
 
-            # TODO: fill in instructions
-            self.instructions = ttk.Label(self, text="TBD, just a static description of each button")
-            grid(self.instructions, 0, 0, 5, 0)
+            # parameters (loaded later)
+            self.safe_z = None
+            self.in_well_z = None
+            self.spot_z = None
+            self.well_pos = None
+            self.pen_pos = None
+            self.spot_dwell_time = 1.0  # seconds, default
 
-            self.startBtn = ttk.Button(self, text="start", command=self.start)
-            grid(self.startBtn, 1, 0, 5, 0)
+            self.instructions = ttk.Label(self, text="After defining first well, pen location, all the relevant heights. \n Proceed with this automated process.")
+            self.instructions.grid(row=0, column=0, padx=5, pady=(5, 10))
 
-            self.toChipBtn = ttk.Button(self, text="move arm down to chip\n(make sure arm is above chip before)", command=self.toChip)
-            grid(self.toChipBtn, 2, 0, 5, 0)
-            self.toChipBtn["state"] = "disabled"
+            self.startBtn = ttk.Button(self, text="Start", command=self.start_process)
+            self.startBtn.grid(row=1, column=0, padx=5, pady=(0, 5))
 
-            # TODO: this should be its own frame (maybe)
-            self.pressureFrame = ttk.LabelFrame(self, text="edit and set equilibrium pressure")
-            for i in range(2): self.pressureFrame.columnconfigure(i, weight=1)
-            self.eqPEnt = ttk.Entry(self.pressureFrame)
-            grid(self.eqPEnt, 0, 0, 0, 0)
-            self.eqPEnt["state"] = "disabled"
-            self.eqPBtn = ttk.Button(self.pressureFrame, text="update", command=self.saveSetEqP) # save pressure value, then set to eqp pressure
-            # NOTE: should probably limit eq pressure here between -20.0 to 20.0
-            grid(self.eqPBtn, 0, 1, 0, 0)
-            self.eqPBtn["state"] = "disabled"
+            self.abortBtn = ttk.Button(self, text="Abort", command=self.abort_process, state="disabled")
+            self.abortBtn.grid(row=2, column=0, padx=5, pady=5)
 
-            grid(self.pressureFrame, 3, 0, 5, 5)
+            self.statusLabel = ttk.Label(self, text="Status: Idle")
+            self.statusLabel.grid(row=3, column=0, padx=5, pady=(10, 5))
 
-            self.printBtn = ttk.Button(self, text="trigger print", command=self.togglePrint)
-            grid(self.printBtn, 4, 0, 5, 0)
-            self.printBtn["state"] = "disabled"
+            # internal control
+            self.running = False
 
-            self.gotoBtn = ttk.Button(self, text="show drop on cam", command=self.goto) # move arm up first # TODO: make a function in driver that moves up, then moves stage relatively by the negation of the offset
-            grid(self.gotoBtn, 5, 0, 5, 0)
-            self.gotoBtn["state"] = "disabled"
+            # ---------- HELPER METHODS ----------
+        def load_positions(self, safe_z, in_well_z, spot_z, well_pos, pen_pos, spot_dwell_time=1.0):
+            """Load all calibration values before running."""
+            self.safe_z = safe_z
+            self.in_well_z = in_well_z
+            self.spot_z = spot_z
+            self.well_pos = well_pos
+            self.pen_pos = pen_pos
+            self.spot_dwell_time = spot_dwell_time
 
-            self.setPntBtn = ttk.Button(self, text="save offset (line up drop on cam)", command=self.setPnt)
-            grid(self.setPntBtn, 6, 0, 5, 0)
-            self.setPntBtn["state"] = "disabled"
+        def update_status(self, msg):
+            self.statusLabel.config(text=f"Status: {msg}")
+            self.statusLabel.update_idletasks()
 
-            self.upBtn = ttk.Button(self, text="move arm up", command=self.armUp)
-            grid(self.upBtn, 7, 0, 5, 0)
-            self.upBtn["state"] = "disabled"
+        # ---------- MAIN PROCESS ----------
+        def start_process(self):
+            if not all([self.safe_z, self.in_well_z, self.spot_z, self.well_pos, self.pen_pos]):
+                messagebox.showerror("Missing data", "Please define all Z heights and positions first.")
+                return
 
-            self.abortBtn = ttk.Button(self, text="abort process", command=self.abort) # stops arm movement
-            # only enables done button, which will have an implicit moveArmUp command called
-            grid(self.abortBtn, 8, 0, 5, 0)
-            self.abortBtn["state"] = "disabled"
+            if not self.zm or not self.s:
+                messagebox.showerror("Controller error", "Z motor or stage controller not initialized.")
+                return
 
-            self.doneBtn = ttk.Button(self, text="done", command=self.done) 
-            grid(self.doneBtn, 9, 0, 5, 0) 
-            self.doneBtn["state"] = "disabled"
-
-            calibButtons.append(self.startBtn)
-            self.printLoc = (None, None)
-            self.offset = (None, None)
-
-            # some fake(?) offset values
-
-        def start(self):
-            # TODO: should abort only be clickable during arm moves?
-            # TODO: if I add a button to save the offset, then I don't need the entire drop offset menu
-            #       since drop offset will also need move up / down
+            self.startBtn["state"] = "disabled"
             self.abortBtn["state"] = "normal"
-            self.toChipBtn["state"] = "normal"
-            self.doneBtn["state"] = "normal"
-            for btn in self.calibButtons: btn["state"] = "disabled"
+            self.running = True
 
-        def toChip(self):
-            self.toChipBtn["state"] = "disabled"
-            interruptBtn["state"] = "normal"
-            # moveToSafeBtn["state"] = "disabled"
-            # cb
-            def cb():
-                self.upBtn["state"] = "normal"
-                self.printBtn["state"] = "normal"
-                self.eqPEnt["state"] = "normal"
-                self.eqPBtn["state"] = "normal"
-                interruptBtn["state"] = "disabled"
-                # moveToSafeBtn["state"] = "normal"
+            # run in separate thread to avoid blocking UI
+            threading.Thread(target=self.run_sequence, daemon=True).start()
 
-            driver.movePrinterToChip(cb)
-
-        def saveSetEqP(self):
-            # also perform checks on save pressure here
-            # TODO: new function in Pressure.py that lets you adjust equilibrium pressure rather than all three at once
-            # should call set pressure after saving the new pressure
-            pVal = self.eqPEnt.get()
+        def run_sequence(self):
             try:
-                pVal = float(pVal)
-                if pVal < -20.0 or pVal > 20.0:
-                    # TODO: have a confirm button
-                    res:bool = messagebox.askokcancel(title="abnormal equilibrium pressure", message=f'You entered {pVal} for your equilibrium pressure, which is outside of the range [-20.0, 20.0]. High equilibrium pressures may cause unwanted behavior. Are you sure you want to use this value?')
-                    if not res: return
-                
-                # TODO: here is where we set equilibrium pressure, need to implement first
-                driver.microscope.printer.pressure.saveAndSetEq(pVal)
+                self.update_status("Moving to safe height")
+                self.zm.moveToZInUM(self.safe_z)
+                if not self.running: return
 
-            except ValueError:
-                res = messagebox.showerror(title="bad input", message="Please be sure you entered a valid pressure value")
+                self.update_status("Moving to first well")
+                self.s.moveToPos(self.well_pos[0], self.well_pos[1])
+                if not self.running: return
 
-        def togglePrint(self):
-            # disable everything, print a drop, re-enable
-            # also save where we printed ( for offset calculation )
-            self.upBtn["state"] = "disabled"
-            self.eqPEnt["state"] = "disabled"
-            self.eqPBtn["state"] = "disabled"
-            self.doneBtn["state"] = "disabled"
-            self.setPntBtn["state"] = "disabled"
-            self.gotoBtn["state"] = "disabled"
-            self.abortBtn["state"] = "disabled"
+                self.update_status("Moving to in-well height")
+                self.zm.moveToZInUM(self.in_well_z)
+                time.sleep(1)
+                if not self.running: return
 
-            self.printLoc = driver.getStageXY()
+                self.update_status("Moving up to safe height")
+                self.zm.moveToZInUM(self.safe_z)
+                time.sleep(1)
+                if not self.running: return
 
-            def cb():
-                self.upBtn["state"] = "normal"
-                self.eqPEnt["state"] = "normal"
-                self.eqPBtn["state"] = "normal"
-                self.doneBtn["state"] = "normal"
-                self.abortBtn["state"] = "normal"
-                if self.printLoc != (None, None): self.setPntBtn["state"] = "normal"
-                # if self.offset != (None, None): self.gotoBtn["state"] = "normal"
-                self.gotoBtn["state"] = "normal" # just use previously loaded offset
+                self.update_status("Moving to pen spot position")
+                self.s.moveToPos(self.pen_pos[0], self.pen_pos[1])
+                if not self.running: return
 
-            driver.printDropNoMove(cb)
+                self.update_status("Spotting on chip")
+                self.zm.moveToZInUM(self.spot_z)
+                time.sleep(self.spot_dwell_time)
+                if not self.running: return
 
-        def goto(self):
-            self.upBtn["state"] = "disabled"
-            self.eqPEnt["state"] = "disabled"
-            self.eqPBtn["state"] = "disabled"
-            self.doneBtn["state"] = "disabled"
-            self.setPntBtn["state"] = "disabled"
-            self.gotoBtn["state"] = "disabled"
-            self.abortBtn["state"] = "disabled"
-            self.printBtn["state"] = "disabled"
+                self.update_status("Returning to safe height")
+                self.zm.moveToZInUM(self.safe_z)
 
-
-            def cb():
-                self.gotoBtn["state"] = "normal"
-                self.upBtn["state"] = "normal"
-                self.eqPEnt["state"] = "normal"
-                self.eqPBtn["state"] = "normal"
-                self.doneBtn["state"] = "normal"
-                self.setPntBtn["state"] = "normal"
-                self.abortBtn["state"] = "normal"
-                self.printBtn["state"] = "normal"
-
-            driver.moveDropToCam(self.printLoc, cb)
-
-        def setPnt(self):
-            loc = driver.getStageXY()
-            self.offset = (self.printLoc[0] - loc[0], self.printLoc[1] - loc[1])
-            driver.saveOffset(self.printLoc[0] - loc[0], self.printLoc[1] - loc[1])
-            # TODO: update calib dict
-            CALIB_DICT["printer offset"].config(text=f"printer offset: {CALIBRATED}", background="#65d92b")
-
-
-        def armUp(self):
-            # moves up, cb disables all printing related buttons
-            self.printBtn["state"] = "disabled"
-            self.gotoBtn["state"] = "disabled"
-            self.setPntBtn["state"] = "disabled"
-            self.upBtn["state"] = "disabled"
-            self.eqPBtn["state"] = "disabled"
-            self.eqPEnt["state"] = "disabled"
-            self.doneBtn["state"] = "disabled"
-            interruptBtn["state"] = "normal"
-            # moveToSafeBtn["state"] = "disabled"
-
-            def cb():
-                self.doneBtn["state"] = "normal"
-                self.toChipBtn["state"] = "normal"
-                interruptBtn["state"] = "disabled"
-                # moveToSafeBtn["state"] = "normal"
-
-            driver.moveArmToUp(cb)
-
-        def abort(self):
-            # TODO: this button / function may not be necessary
-            # call interrupt, only enable done
-            def cb():
-                self.doneBtn["state"] = "normal"
-            
-            driver.interrupt(cb)
-
-        def done(self):
-            # cb(enable start, disable abort), done
-            # move arm up
-            self.doneBtn["state"] = "disabled"
-            self.upBtn["state"] = "disabled"
-            self.toChipBtn["state"] = "disabled"
-            self.printBtn["state"] = "disabled"
-            self.eqPBtn["state"] = "disabled"
-            self.eqPEnt["state"] = "disabled"
-            self.setPntBtn["state"] = "disabled"
-            interruptBtn["state"] = "normal"
-            # moveToSafeBtn["state"] = "disabled"
-
-            def cb():
+                self.update_status("Done")
+            except Exception as e:
+                messagebox.showerror("Error", f"Spotting process failed:\n{e}")
+                self.update_status("Error")
+            finally:
                 self.startBtn["state"] = "normal"
                 self.abortBtn["state"] = "disabled"
-                for btn in self.calibButtons: btn["state"] = "normal"
-                interruptBtn["state"] = "disabled"
-                # moveToSafeBtn["state"] = "normal"
+                self.running = False
 
-            driver.moveArmToUp(cb)
+        def abort_process(self):
+            self.running = False
+            self.update_status("Aborted")
+            self.startBtn["state"] = "normal"
+            self.abortBtn["state"] = "disabled"
+
+    # class PrintDropTest(ttk.LabelFrame):
+    #     def __init__(self, parent, calibButtons):
+    #         ttk.LabelFrame.__init__(self, parent, text="Automated Spot Calibration")
+    #         self.columnconfigure(0, weight=1)
+    #         self.calibButtons = calibButtons
+
+    #         # TODO: fill in instructions
+    #         self.instructions = ttk.Label(self, text="After defining first well, pen location, all the relevant heights. \n Proceed with this automated process.")
+    #         grid(self.instructions, 0, 0, 5, 0)
+
+    #         self.startBtn = ttk.Button(self, text="start", command=self.start)
+    #         grid(self.startBtn, 1, 0, 5, 0)
+
+    #         self.toChipBtn = ttk.Button(self, text="move arm down to chip\n(make sure arm is above chip before)", command=self.toChip)
+    #         grid(self.toChipBtn, 2, 0, 5, 0)
+    #         self.toChipBtn["state"] = "disabled"
+
+    #         # TODO: this should be its own frame (maybe)
+    #         # self.pressureFrame = ttk.LabelFrame(self, text="edit and set equilibrium pressure")
+    #         # for i in range(2): self.pressureFrame.columnconfigure(i, weight=1)
+    #         # self.eqPEnt = ttk.Entry(self.pressureFrame)
+    #         # grid(self.eqPEnt, 0, 0, 0, 0)
+    #         # self.eqPEnt["state"] = "disabled"
+    #         # self.eqPBtn = ttk.Button(self.pressureFrame, text="update", command=self.saveSetEqP) # save pressure value, then set to eqp pressure
+    #         # # NOTE: should probably limit eq pressure here between -20.0 to 20.0
+    #         # grid(self.eqPBtn, 0, 1, 0, 0)
+    #         # self.eqPBtn["state"] = "disabled"
+
+    #         # grid(self.pressureFrame, 3, 0, 5, 5)
+
+    #         self.printBtn = ttk.Button(self, text="trigger print", command=self.togglePrint)
+    #         grid(self.printBtn, 3, 0, 5, 0)
+    #         self.printBtn["state"] = "disabled"
+
+    #         self.gotoBtn = ttk.Button(self, text="show drop on cam", command=self.goto) # move arm up first # TODO: make a function in driver that moves up, then moves stage relatively by the negation of the offset
+    #         grid(self.gotoBtn, 4, 0, 5, 0)
+    #         self.gotoBtn["state"] = "disabled"
+
+    #         self.setPntBtn = ttk.Button(self, text="save offset (line up drop on cam)", command=self.setPnt)
+    #         grid(self.setPntBtn, 5, 0, 5, 0)
+    #         self.setPntBtn["state"] = "disabled"
+
+    #         self.upBtn = ttk.Button(self, text="move arm up", command=self.armUp)
+    #         grid(self.upBtn, 6, 0, 5, 0)
+    #         self.upBtn["state"] = "disabled"
+
+    #         self.abortBtn = ttk.Button(self, text="abort process", command=self.abort) # stops arm movement
+    #         # only enables done button, which will have an implicit moveArmUp command called
+    #         grid(self.abortBtn, 7, 0, 5, 0)
+    #         self.abortBtn["state"] = "disabled"
+
+    #         self.doneBtn = ttk.Button(self, text="done", command=self.done) 
+    #         grid(self.doneBtn, 8, 0, 5, 0) 
+    #         self.doneBtn["state"] = "disabled"
+
+    #         calibButtons.append(self.startBtn)
+    #         self.printLoc = (None, None)
+    #         self.offset = (None, None)
+
+    #         # some fake(?) offset values
+
+    #     def start(self):
+    #         # TODO: should abort only be clickable during arm moves?
+    #         # TODO: if I add a button to save the offset, then I don't need the entire drop offset menu
+    #         #       since drop offset will also need move up / down
+    #         self.abortBtn["state"] = "normal"
+    #         self.toChipBtn["state"] = "normal"
+    #         self.doneBtn["state"] = "normal"
+    #         for btn in self.calibButtons: btn["state"] = "disabled"
+
+    #     def toChip(self):
+    #         self.toChipBtn["state"] = "disabled"
+    #         interruptBtn["state"] = "normal"
+    #         # moveToSafeBtn["state"] = "disabled"
+    #         # cb
+    #         def cb():
+    #             self.upBtn["state"] = "normal"
+    #             self.printBtn["state"] = "normal"
+    #             self.eqPEnt["state"] = "normal"
+    #             self.eqPBtn["state"] = "normal"
+    #             interruptBtn["state"] = "disabled"
+    #             # moveToSafeBtn["state"] = "normal"
+
+    #         driver.movePrinterToChip(cb)
+
+    #     # def saveSetEqP(self):
+    #     #     # also perform checks on save pressure here
+    #     #     # TODO: new function in Pressure.py that lets you adjust equilibrium pressure rather than all three at once
+    #     #     # should call set pressure after saving the new pressure
+    #     #     pVal = self.eqPEnt.get()
+    #     #     try:
+    #     #         pVal = float(pVal)
+    #     #         if pVal < -20.0 or pVal > 20.0:
+    #     #             # TODO: have a confirm button
+    #     #             res:bool = messagebox.askokcancel(title="abnormal equilibrium pressure", message=f'You entered {pVal} for your equilibrium pressure, which is outside of the range [-20.0, 20.0]. High equilibrium pressures may cause unwanted behavior. Are you sure you want to use this value?')
+    #     #             if not res: return
+                
+    #     #         # TODO: here is where we set equilibrium pressure, need to implement first
+    #     #         driver.microscope.printer.pressure.saveAndSetEq(pVal)
+
+    #     #     except ValueError:
+    #     #         res = messagebox.showerror(title="bad input", message="Please be sure you entered a valid pressure value")
+
+    #     def togglePrint(self):
+    #         # disable everything, print a drop, re-enable
+    #         # also save where we printed ( for offset calculation )
+    #         self.upBtn["state"] = "disabled"
+    #         self.eqPEnt["state"] = "disabled"
+    #         self.eqPBtn["state"] = "disabled"
+    #         self.doneBtn["state"] = "disabled"
+    #         self.setPntBtn["state"] = "disabled"
+    #         self.gotoBtn["state"] = "disabled"
+    #         self.abortBtn["state"] = "disabled"
+
+    #         self.printLoc = driver.getStageXY()
+
+    #         def cb():
+    #             self.upBtn["state"] = "normal"
+    #             self.eqPEnt["state"] = "normal"
+    #             self.eqPBtn["state"] = "normal"
+    #             self.doneBtn["state"] = "normal"
+    #             self.abortBtn["state"] = "normal"
+    #             if self.printLoc != (None, None): self.setPntBtn["state"] = "normal"
+    #             # if self.offset != (None, None): self.gotoBtn["state"] = "normal"
+    #             self.gotoBtn["state"] = "normal" # just use previously loaded offset
+
+    #         driver.printDropNoMove(cb)
+
+    #     def goto(self):
+    #         self.upBtn["state"] = "disabled"
+    #         self.eqPEnt["state"] = "disabled"
+    #         self.eqPBtn["state"] = "disabled"
+    #         self.doneBtn["state"] = "disabled"
+    #         self.setPntBtn["state"] = "disabled"
+    #         self.gotoBtn["state"] = "disabled"
+    #         self.abortBtn["state"] = "disabled"
+    #         self.printBtn["state"] = "disabled"
+
+
+    #         def cb():
+    #             self.gotoBtn["state"] = "normal"
+    #             self.upBtn["state"] = "normal"
+    #             self.eqPEnt["state"] = "normal"
+    #             self.eqPBtn["state"] = "normal"
+    #             self.doneBtn["state"] = "normal"
+    #             self.setPntBtn["state"] = "normal"
+    #             self.abortBtn["state"] = "normal"
+    #             self.printBtn["state"] = "normal"
+
+    #         driver.moveDropToCam(self.printLoc, cb)
+
+    #     def setPnt(self):
+    #         loc = driver.getStageXY()
+    #         self.offset = (self.printLoc[0] - loc[0], self.printLoc[1] - loc[1])
+    #         driver.saveOffset(self.printLoc[0] - loc[0], self.printLoc[1] - loc[1])
+    #         # TODO: update calib dict
+    #         # CALIB_DICT["printer offset"].config(text=f"printer offset: {CALIBRATED}", background="#65d92b")
+
+
+    #     def armUp(self):
+    #         # moves up, cb disables all printing related buttons
+    #         self.printBtn["state"] = "disabled"
+    #         self.gotoBtn["state"] = "disabled"
+    #         self.setPntBtn["state"] = "disabled"
+    #         self.upBtn["state"] = "disabled"
+    #         self.eqPBtn["state"] = "disabled"
+    #         self.eqPEnt["state"] = "disabled"
+    #         self.doneBtn["state"] = "disabled"
+    #         interruptBtn["state"] = "normal"
+    #         # moveToSafeBtn["state"] = "disabled"
+
+    #         def cb():
+    #             self.doneBtn["state"] = "normal"
+    #             self.toChipBtn["state"] = "normal"
+    #             interruptBtn["state"] = "disabled"
+    #             # moveToSafeBtn["state"] = "normal"
+
+    #         driver.moveArmToUp(cb)
+
+    #     def abort(self):
+    #         # TODO: this button / function may not be necessary
+    #         # call interrupt, only enable done
+    #         def cb():
+    #             self.doneBtn["state"] = "normal"
+            
+    #         driver.interrupt(cb)
+
+    #     def done(self):
+    #         # cb(enable start, disable abort), done
+    #         # move arm up
+    #         self.doneBtn["state"] = "disabled"
+    #         self.upBtn["state"] = "disabled"
+    #         self.toChipBtn["state"] = "disabled"
+    #         self.printBtn["state"] = "disabled"
+    #         self.eqPBtn["state"] = "disabled"
+    #         self.eqPEnt["state"] = "disabled"
+    #         self.setPntBtn["state"] = "disabled"
+    #         interruptBtn["state"] = "normal"
+    #         # moveToSafeBtn["state"] = "disabled"
+
+    #         def cb():
+    #             self.startBtn["state"] = "normal"
+    #             self.abortBtn["state"] = "disabled"
+    #             for btn in self.calibButtons: btn["state"] = "normal"
+    #             interruptBtn["state"] = "disabled"
+    #             # moveToSafeBtn["state"] = "normal"
+
+    #         driver.moveArmToUp(cb)
 
   
 class SanityMenu(ttk.Frame):
@@ -1110,18 +1277,30 @@ class SanityMenu(ttk.Frame):
                 self.rowconfigure(i, weight=1)
                 self.columnconfigure(i, weight=1)
 
-            self.sanity_buttons = buttons
+            self.sanityButtons = buttons
 
             wellLab = ttk.Label(self, text="Select well: (ex: A1)")
             grid(wellLab, 0,0,0,0)
 
-            wellEnt = ttk.Entry(self)
-            grid(wellEnt,0,1,0,0)
+            self.wellEnt = ttk.Entry(self)
+            grid(self.wellEnt,0,1,0,0)
 
-            goBtn = ttk.Button(self, text="get sample from well")
+            goBtn = ttk.Button(self, text="get sample from well", command=self.grabSample)
             goBtn.grid(row=1,column=0, columnspan=2, sticky='nsew')
 
-            for child in self.winfo_children(): self.sanity_buttons.append(child)
+            for child in self.winfo_children(): self.sanityButtons.append(child)
+
+        
+        def grabSample(self):
+            wellID = self.wellEnt.get()
+            def cb():
+                for btn in self.sanityButtons: btn["state"] = "normal"
+            try:
+                for btn in self.sanityButtons: btn["state"] = "disabled"
+                driver.grabSample(wellID, cb)
+            except Exception as e:
+                messagebox.showerror(title="method failed", message=f"{str(e)}")
+                cb()
 
     class PrintRow(ttk.LabelFrame):
         def __init__(self, parent, sanityButtons):
@@ -1195,8 +1374,8 @@ class CalibratedList(ttk.LabelFrame):
         self.calibrations["stage"] = ttk.Label(self, text=f"stage: {LOADED}", background="#e39919")
         self.calibrations["stage"].pack(expand=True, fill='both')
 
-        self.calibrations["printer offset"] = ttk.Label(self, text=f"printer offset: {LOADED}", background="#e39919")
-        self.calibrations["printer offset"].pack(expand=True, fill='both')
+        self.calibrations["pen offset"] = ttk.Label(self, text=f"pen offset: {LOADED}", background="#e39919")
+        self.calibrations["pen offset"].pack(expand=True, fill='both')
 
         self.calibrations["first channel"] = ttk.Label(self, text=f"first channel: {LOADED}", background="#e39919")
         self.calibrations["first channel"].pack(expand=True, fill='both')
@@ -1204,8 +1383,14 @@ class CalibratedList(ttk.LabelFrame):
         self.calibrations["first well"] = ttk.Label(self, text=f"first well: {LOADED}", background="#e39919")
         self.calibrations["first well"].pack(expand=True, fill='both')
 
-        self.calibrations["pressures"] = ttk.Label(self, text=f"pressures: {LOADED}", background="#e39919")
-        self.calibrations["pressures"].pack(expand=True, fill='both')
+        self.calibrations["fiducial"] = ttk.Label(self, text=f"fiducial: {LOADED}", background="#e39919")
+        self.calibrations["fiducial"].pack(expand=True, fill='both')
+
+        self.calibrations["pen stage"] = ttk.Label(self, text=f"pen stage: {LOADED}", background="#e39919")
+        self.calibrations["pen stage"].pack(expand=True, fill='both')
+
+        # self.calibrations["pressures"] = ttk.Label(self, text=f"pressures: {LOADED}", background="#e39919")
+        # self.calibrations["pressures"].pack(expand=True, fill='both')
 
         for child in self.winfo_children(): STARTUP_DISABLED_BUTTONS.append(child)
 
@@ -1224,7 +1409,7 @@ class AdditionalCommands(ttk.LabelFrame):
         showCamBtn = ttk.Button(self, text="open camera display", command=self.openCamera)
         grid(showCamBtn, 1, 0, 0, 0)
 
-        cleanHeadBtn = ttk.Button(self, text="clean the printer head")
+        cleanHeadBtn = ttk.Button(self, text="clean the printer head", command=self.cleanHead)
         ARM_ENABLES.append(cleanHeadBtn)
         grid(cleanHeadBtn, 2, 0 ,0 ,0)
 
@@ -1238,6 +1423,16 @@ class AdditionalCommands(ttk.LabelFrame):
 
         # TODO: maybe make camera a global variable, that way it can be passed to the driver
         # TODO: connecting to camera can throw an error, so we should really connect when opening camera
+    def cleanHead(self):
+        def cb():
+            x=3
+            # for btn in self.sanityButtons: btn["state"] = "normal"
+        try:
+            driver.cleanOutHead(cb)
+        except Exception as e:
+            messagebox.showerror(title="method failed", message=f"{str(e)}")
+            cb()
+
 
     def openCamera(self):
         def on_closing():
@@ -1251,7 +1446,8 @@ class AdditionalCommands(ttk.LabelFrame):
         if not self.camOpen:
             try:
                 # self.camera=Camera()
-                self.camera=OrcaFlashV2()
+                self.camera=CoolSnapHQ2()
+                # self.camera.connect()
                 cameraWin = tk.Toplevel(root)
                 cameraWin.title("Camera Display")
                 self.cw = CamWidget(cameraWin, self.camera)
@@ -1338,42 +1534,42 @@ class AdditionalMenu(ttk.Frame):
 
         # apply certain pressure for certain num of seconds
             # labelframe, entry, entry, button
-        paFrame = ttk.LabelFrame(self, text="apply certain pressure for certain amount of time")
-        for i in range(2):
-            paFrame.columnconfigure(i, weight=1)
-            paFrame.rowconfigure(i, weight=1)
-        palab = ttk.Label(paFrame, text="pressure (mbar)")
-        self.paEnt = ttk.Entry(paFrame)
-        secLab = ttk.Label(paFrame, text="seconds")
-        applyPressureBtn = ttk.Button(paFrame, text="apply pressure", command=self.applyPressure)
-        self.secEnt = ttk.Entry(paFrame)
+        # paFrame = ttk.LabelFrame(self, text="apply certain pressure for certain amount of time")
+        # for i in range(2):
+        #     paFrame.columnconfigure(i, weight=1)
+        #     paFrame.rowconfigure(i, weight=1)
+        # palab = ttk.Label(paFrame, text="pressure (mbar)")
+        # self.paEnt = ttk.Entry(paFrame)
+        # secLab = ttk.Label(paFrame, text="seconds")
+        # applyPressureBtn = ttk.Button(paFrame, text="apply pressure", command=self.applyPressure)
+        # self.secEnt = ttk.Entry(paFrame)
 
-        grid(palab, 0, 0, 5, 5)
-        grid(self.paEnt, 0, 1, 5, 5)
-        grid(secLab, 1, 0, 5, 5)
-        grid(self.secEnt, 1, 1, 5, 5)
-        applyPressureBtn.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
-        grid(paFrame, 1,0,5,5)
+        # grid(palab, 0, 0, 5, 5)
+        # grid(self.paEnt, 0, 1, 5, 5)
+        # grid(secLab, 1, 0, 5, 5)
+        # grid(self.secEnt, 1, 1, 5, 5)
+        # applyPressureBtn.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
+        # grid(paFrame, 1,0,5,5)
 
-        # set pressure for undefined amount of time (equilibrium pressure, in, out)
-            # labelframe, entry, button, stop button (set to zero)
-        self.steadyPFrame = ttk.LabelFrame(self, text="set constant pressure (mbar)")
-        for i in range(2):
-            self.steadyPFrame.rowconfigure(i, weight=1)
-            self.steadyPFrame.columnconfigure(i, weight=1)
-        self.steadyPent = ttk.Entry(self.steadyPFrame)
-        self.steadyPBtn = ttk.Button(self.steadyPFrame, text="set this as pressure", command=self.setSteady)
-        steadyStopBtn = ttk.Button(self.steadyPFrame, text="set pressure to 0", command=self.clearSteady)
-        getPBtn = ttk.Button(self.steadyPFrame, text="get current pressure", command=self.getPressure)
-        grid(self.steadyPFrame, 2, 0, 5,5)
-        grid(self.steadyPent, 0,0,5,5)
-        grid(self.steadyPBtn, 0,1,5,5)
-        steadyStopBtn.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
-        getPBtn.grid(row=2, column=0, columnspan=2, pady=5, padx=5, sticky='nsew')
+        # # set pressure for undefined amount of time (equilibrium pressure, in, out)
+        #     # labelframe, entry, button, stop button (set to zero)
+        # self.steadyPFrame = ttk.LabelFrame(self, text="set constant pressure (mbar)")
+        # for i in range(2):
+        #     self.steadyPFrame.rowconfigure(i, weight=1)
+        #     self.steadyPFrame.columnconfigure(i, weight=1)
+        # self.steadyPent = ttk.Entry(self.steadyPFrame)
+        # self.steadyPBtn = ttk.Button(self.steadyPFrame, text="set this as pressure", command=self.setSteady)
+        # steadyStopBtn = ttk.Button(self.steadyPFrame, text="set pressure to 0", command=self.clearSteady)
+        # getPBtn = ttk.Button(self.steadyPFrame, text="get current pressure", command=self.getPressure)
+        # grid(self.steadyPFrame, 2, 0, 5,5)
+        # grid(self.steadyPent, 0,0,5,5)
+        # grid(self.steadyPBtn, 0,1,5,5)
+        # steadyStopBtn.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
+        # getPBtn.grid(row=2, column=0, columnspan=2, pady=5, padx=5, sticky='nsew')
 
         # call recalibrateOffset on pressure system
-        calibPOffsetBtn = ttk.Button(self.steadyPFrame, text="recalibrate pressure system's offset", command=self.recalibPressOffset)
-        calibPOffsetBtn.grid(row=3, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
+        # calibPOffsetBtn = ttk.Button(self.steadyPFrame, text="recalibrate pressure system's offset", command=self.recalibPressOffset)
+        # calibPOffsetBtn.grid(row=3, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
         # offset calibration menu
             # labelframe, print button, set button, goto button
             # stores self.printloc
@@ -1420,7 +1616,7 @@ class AdditionalMenu(ttk.Frame):
         grid(self.chanToCamEnt, 1, 0, 5, 5)
         grid(chanToCamBtn, 1, 1, 5, 5)
         grid(self.chanToPEnt, 2, 0, 5, 5)
-        grid(chanToPBtn, 2, 1, 5, 5)    
+        grid(chanToPBtn, 2, 1, 5, 5)
 
         toKFrame = ttk.LabelFrame(self, text="print to at most 40 channels, starting from the first channel")
         toKFrame.rowconfigure(0, weight=1)
@@ -1442,10 +1638,16 @@ class AdditionalMenu(ttk.Frame):
         resetArdBtn = ttk.Button(self, text="restart arduino", command=driver.reconnectArduino)
         grid(resetArdBtn, 5, 1, 5, 5)
 
-        self.buttons = [self.armEnt, armBtn, aoBtn, self.armSEnt, armSBtn, stepbtn, applyPressureBtn, 
-                        steadyStopBtn, printBtn, saveOffBtn, gotoBtn, saveFirstBtn, chanToCamBtn, 
-                        chanToPBtn, toKBtn, self.steadyPBtn, self.armMEnt, armMBtn, toCamBtn, moveYBtn,
-                        waitBtn, calibPOffsetBtn ]
+        self.buttons = [self.armEnt, armBtn, aoBtn, self.armSEnt, armSBtn, stepbtn, 
+                        # applyPressureBtn, 
+                        # steadyStopBtn, 
+                        printBtn, saveOffBtn, gotoBtn, saveFirstBtn, chanToCamBtn, 
+                        chanToPBtn, toKBtn, 
+                        # self.steadyPBtn, 
+                        self.armMEnt, armMBtn, toCamBtn, moveYBtn,
+                        waitBtn, 
+                        # calibPOffsetBtn 
+                        ]
 
     def recalibPressOffset(self):
         def cb():
@@ -1478,9 +1680,9 @@ class AdditionalMenu(ttk.Frame):
         except Exception as e:
             messagebox.showerror(title="error", message=str(e))
 
-    def getPressure(self):
-        pres = driver.microscope.printer.pressure.get_pressure()
-        messagebox.showinfo(title="Current pressure on channel 3", message=f"{pres} mbar")
+    # def getPressure(self):
+    #     pres = driver.microscope.printer.pressure.get_pressure()
+    #     messagebox.showinfo(title="Current pressure on channel 3", message=f"{pres} mbar")
 
     def printToK(self):
         num = self.toKEnt.get()
@@ -1565,28 +1767,28 @@ class AdditionalMenu(ttk.Frame):
         print(f"steps: {driver.microscope.arm.zmotor.getZPosInSteps()}")
         print(f"mm: {inum / 1000}")
 
-    def applyPressure(self):
-        pressure = self.paEnt.get()
-        seconds = self.secEnt.get()
-        try:
-            pressure = float(pressure)
-            seconds = float(seconds)
-            driver.microscope.printer.pressure.setSteady(pressure)
-            sleep(seconds)
-            driver.microscope.printer.pressure.setToZero()
-        except Exception as e:
-            print(e)
+    # def applyPressure(self):
+    #     pressure = self.paEnt.get()
+    #     seconds = self.secEnt.get()
+    #     try:
+    #         pressure = float(pressure)
+    #         seconds = float(seconds)
+    #         driver.microscope.printer.pressure.setSteady(pressure)
+    #         sleep(seconds)
+    #         driver.microscope.printer.pressure.setToZero()
+    #     except Exception as e:
+    #         print(e)
 
-    def setSteady(self):
-        steadyP = self.steadyPent.get()
-        try:
-            steadyP = float(steadyP)
-            driver.microscope.printer.pressure.setSteady(steadyP)
-        except Exception as e:
-            print(e)
+    # def setSteady(self):
+    #     steadyP = self.steadyPent.get()
+    #     try:
+    #         steadyP = float(steadyP)
+    #         driver.microscope.printer.pressure.setSteady(steadyP)
+    #     except Exception as e:
+    #         print(e)
 
-    def clearSteady(self):
-            driver.microscope.printer.pressure.setToZero()
+    # def clearSteady(self):
+    #         driver.microscope.printer.pressure.setToZero()
 
     def triggerJet(self):
         driver.microscope.printer.printSingleDrop()

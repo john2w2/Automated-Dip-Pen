@@ -4,8 +4,8 @@ import os
 
 # sys.path.insert(1,"C:\\Users\\19199\\Desktop\\kyler v\\Flow Controller\\python_64")
 # sys.path.insert(1,"C:\\Users\\19199\\Desktop\\kyler v\\Flow Controller\\python_64\\DLL64")
-sys.path.insert(1, 'C:\\Users\\19199\\Desktop\\automated-sca\\flow_controller\\python_64')
-sys.path.insert(1, 'C:\\Users\\19199\\Desktop\\automated-sca\\flow_controller\\python_64\\DLL64')
+sys.path.insert(1, 'C:\\Users\\NikonTE300CE\\Desktop\\automated-sca\\flow_controller\\python_64')
+sys.path.insert(1, 'C:\\Users\\NikonTE300CE\\Desktop\\automated-sca\\flow_controller\\python_64\\DLL64')
 
 from Elveflow64 import *
 from ctypes import *
@@ -18,7 +18,7 @@ class OB1:
     Channels 3-4 are rated for -1000 to 1000 mbar
     Almost all methods will return error codes, read through the Elveflow SDK for more info on that if you want
     """
-    def __init__(self,NI_ID="01CF6A56",calibrate=False,cal_path=f"C:\\Users\\19199\\Desktop\\automated-microscope\\code_hierarchy_draft\\flow_controller\\calibration"):
+    def __init__(self,NI_ID="01CF6A56",calibrate=False,cal_path=f"C:\\Users\\NikonTE300CE\\Desktop\\automated-microscope\\code_hierarchy_draft\\flow_controller\\calibration"):
         """
         Constructor for OB1
         :param NI_ID: The device ID for OB1 found in the NI MAX software.

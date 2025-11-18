@@ -2,7 +2,7 @@
 
 
 import matplotlib.pyplot as plt
-from orcaFlash import OrcaFlashV2
+from coolSnapHQ2 import CoolSnapHQ2
 from stage import Stage
 from plate import Plate
 from chip import Chip
@@ -32,7 +32,7 @@ def calibFirstWellPos():
     c = Chip()
     p = Plate()
     s = Stage(p, c)
-    cam = OrcaFlashV2()
+    cam = CoolSnapHQ2()
 
 
     img = cam.getImage()

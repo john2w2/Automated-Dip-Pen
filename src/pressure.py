@@ -3,14 +3,14 @@ import sys
 import numpy as np
 from time import sleep
 
-from elveflow_ob1 import ElveflowOB1
+# from elveflow_ob1 import ElveflowOB1
 from deviceInterfaces.pressure_system import PressureSystem
 
 # DEFAULT_CHANNEL: int = 3
 
 class Pressure:
   def __init__(self):
-    self.pcontroller: PressureSystem = ElveflowOB1()
+    # self.pcontroller: PressureSystem = ElveflowOB1()
     # TODO: load these from a file
     self.inPressure = -80
     self.eqPressure = 0

@@ -10,7 +10,7 @@ class Screw:
     :type tpi: int, optional
     """
 
-    def __init__(self, numStarts=2, tpi=13):
+    def __init__(self, numStarts=4, tpi=12.7):
         """Constructor
         """
         self.numStarts = numStarts
@@ -22,12 +22,12 @@ class Screw:
         :return: lead value for screw
         :rtype: float
         """
-        # Lead = distance a nut moves per one revolution of the screw
-        # TPI = Threads Per Inch. Count number of thread peaks per inch
+        # Lead = distance a nut moves per one revolution of the screw, pitch * number of starts
+        # TPI = Threads Per Inch. Count number of thread peaks per inch. 9/9/2025 update: T8x8 lead screw has a 2 mm pitch, which is 12.7 TPI
         # Pitch = distance between crest threads = 1/ TPI
         # NOTE: better to calculate TPI, measuring pitch yourself could lead to inaccuracy
         # Number of starts = number of ridges wrapped around screw body (go see a picture)
-        # NOTE: standard screw has 1 start, though ours has 2
+        # NOTE: standard screw has 1 start, though ours has 4
 
         # Lead = pitch * number of starts
         pitch = 1 / self.tpi  # in inches
@@ -47,10 +47,15 @@ class Stepper:
     :type stepsPerRev: int, optional
     """
 
-    def __init__(self, screw: Screw, stepsPerRev=200):
+    def __init__(self, screw: Screw, stepsPerRev=400):
         self.screw = screw
         self.stepsPerRev = stepsPerRev
-        # note: stepper motor is called {stepsPerRev}-step motor (e.g., 200-step motor)
+        # note: stepper motor is called {stepsPerRev}-step motor (e.g., 200-step motor) 
+
+        # 7/14/2025 update:
+        # Main goal is to migrate the current configuration to dipping and place system, i.e. 
+        # getting rid of voltage and flow components. I upgraded the system to have 0.9 deg 
+        # stepper motor (400 stepsPerRev).
 
         # Vertical distance attached object will move (in um) per step of motor
         self.distPerStep = self.screw.getLead() / self.stepsPerRev * 1000
@@ -71,13 +76,13 @@ class ZMotor:
 
     """
     # TODO: add constructor parameters: numStarts, TPI
-    def __init__(self, arduinoController: serial.Serial, numStarts=2, tpi=13, stepsPerRev=200):
+    def __init__(self, arduinoController: serial.Serial, numStarts=4, tpi=12.7, stepsPerRev=400):
         self.screw = Screw(numStarts=numStarts, tpi=tpi)
         self.stepper = Stepper(screw=self.screw, stepsPerRev=stepsPerRev)
         self.arduino = arduinoController
 
     def calibrateOrigin(self):
-        """Move arm until it hits topmost limit switch, saves that position as origin
+        """Move arm until it triggers the optical endstop, saves that position as origin
         """
 
         self.__sendCommand("calibrateOrigin")
@@ -102,7 +107,7 @@ class ZMotor:
         self.__waitForIdle()
 
     def moveToZInUM(self, dist):
-        """Move arm to specified absolujte Z position (in um)
+        """Move arm to specified absolute Z position (in um)
 
         Example:
         ```

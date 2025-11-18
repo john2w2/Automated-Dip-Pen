@@ -16,7 +16,7 @@ class Chip:
 
     CHAN_EMPTY: str = " "
 
-    def __init__(self, numChan=40, chanWidth=100, chanGapWidth=160):
+    def __init__(self, numChan=40, chanWidth=70, chanGapWidth=190): # all dimensions in um
         """
         Constructor
 

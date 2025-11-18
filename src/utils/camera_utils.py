@@ -60,25 +60,36 @@ def apply_gain(img: np.ndarray, gain: int):
     # since we specified out=img in each np call, our 
     # original image has been modified
 
-def draw_cross(img, crossColor=255, crossWidth=5) -> np.array:
-    """
-    Draws a cross on image, modifying the original image 
-    rather than copying it 
+# def draw_cross(img, crossColor=255, crossWidth=1) -> np.array:
+#     """
+#     Draws a cross on image, modifying the original image 
+#     rather than copying it 
 
-    :param img: the image to draw a cross on
-    :type img: m x n matrix
-    """
+#     :param img: the image to draw a cross on
+#     :type img: m x n matrix
+#     """
 
-    numRows = img.shape[0]
-    numCols = img.shape[1]
+#     numRows = img.shape[0]
+#     numCols = img.shape[1]
 
-    cv2.line(img, (0, numRows//2), (numCols, numRows//2), crossColor, crossWidth)
-    cv2.line(img, (numCols//2, 0), (numCols//2, numRows), crossColor, crossWidth)
+#     cv2.line(img, (0, numRows//2), (numCols, numRows//2), crossColor, crossWidth)
+#     cv2.line(img, (numCols//2, 0), (numCols//2, numRows), crossColor, crossWidth)
+
+def draw_cross(img, crossColor=65535, crossWidth=1):
+    numRows, numCols = img.shape[:2]
+    centerY, centerX = numRows // 2, numCols // 2
+
+    half_width = crossWidth // 2
+    # Horizontal line
+    img[centerY - half_width:centerY + half_width + 1, :] = crossColor
+    # Vertical line
+    img[:, centerX - half_width:centerX + half_width + 1] = crossColor
+
 
 def save_image_from_camera(camera: Camera, 
     gain:int,
     fileName:str,
-    parent_dir: str = "C:\\Users\\19199\\Desktop\\automated-sca\\development\\ValueStorage\\images") -> None:
+    parent_dir: str = "C:\\Users\\NikonTE300CE\\Desktop\\automated-sca\\development\\ValueStorage\\images") -> None:
     if camera.is_acquiring():
         im = camera.get_next_frame()
         apply_gain(im, gain=gain)

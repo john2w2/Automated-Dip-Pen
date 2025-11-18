@@ -33,6 +33,11 @@ class Plate6(Plate):
     def __init__(self):
         super().__init__(numRows=2, numCols=3, diam=39120, depth=17400)
 
+class Plate12(Plate):
+    """12 well plate"""
+    def __init__(self):
+        super().__init__(numRows=3, numCols=4, diam=22000, depth=18000)
+
 class Plate96(Plate):
     """96 well palte"""
     def __init__(self):

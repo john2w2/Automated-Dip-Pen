@@ -4,11 +4,11 @@ import sys
 from utils.camera_utils import *
 
 import cv2
-sys.path.append("C:/Users/19199/Desktop/automated-sca/src")
+sys.path.append(r"C:\\Users\\NikonTE300CE\\Desktop\\automated-sca\\src")
 
 from tkinter import ttk
 from threading import Thread
-from orcaFlash import OrcaFlashV2
+from coolSnapHQ2 import CoolSnapHQ2
 
 from tkinter import messagebox
 from tkinter import filedialog
@@ -16,7 +16,7 @@ from tkinter import filedialog
 
 
 class CamWidget(tk.Frame):
-    def __init__(self, parent, camObj: OrcaFlashV2):
+    def __init__(self, parent, camObj: CoolSnapHQ2):
         # camObj is the instantiated camera to take images from
         tk.Frame.__init__(self, parent)
 
@@ -50,9 +50,10 @@ class CamWidget(tk.Frame):
 
         # gain entry, gain button
         # exposure entry, exposure button
+        
         exposureFrame = ttk.LabelFrame(buttonFrame, text="set exposure (ms)")
         self.expEnt = ttk.Entry(exposureFrame)
-        self.expEnt.insert(0, "33")
+        self.expEnt.insert(0, "6")
         expBtn = ttk.Button(exposureFrame, text="set exposure", command=self.setExposure)
         self.expEnt.grid(row = 0, column=0)
         expBtn.grid(row=0, column=1)
@@ -75,7 +76,7 @@ class CamWidget(tk.Frame):
         buttonFrame.pack()
 
 
-        self.cam: OrcaFlashV2 = camObj
+        self.cam: CoolSnapHQ2 = camObj
         self.lose = True
         self.gain: int = 1
 
@@ -117,7 +118,10 @@ class CamWidget(tk.Frame):
             exp = float(exp)
             if (exp < 0):
                 raise ValueError("exposure must be >= 1")
-            self.cam.set_exposure(exp)
+            # self.cam.set_exposure(exp)
+            self.pendingExposure = exp
+
+
         except Exception as e:
             messagebox.showerror(title="bad exposure input", message="please ensure you entered an integer >=1")
 
@@ -150,6 +154,16 @@ class CamWidget(tk.Frame):
             cv2.resizeWindow("feed", 600, 600)
 
             while not self.stopCamThreads and cv2.getWindowProperty('feed', 0) >=0:
+                if hasattr(self, "pendingExposure"):
+                    try:
+                        new_exp = self.pendingExposure
+                        self.cam.stop_acquisition()
+                        self.cam.set_exposure(new_exp)
+                        self.cam.start_acquisition()
+                        del self.pendingExposure  # clear flag once applied
+                    except Exception as e:
+                        print(f"[Camera] Failed to apply exposure: {e}")
+
                 if self.cam.get_num_waiting_frames() > 0:
 
                     img = self.cam.get_next_frame()

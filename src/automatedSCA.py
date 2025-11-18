@@ -1,11 +1,11 @@
 from re import S
 import serial
 
-from plate import Plate, Plate6, Plate96, Plate384
+from plate import Plate, Plate6, Plate12, Plate96, Plate384
 from chip import Chip
 from arm import Arm
 from stage import Stage
-from printerHead import PrinterHead
+# from printerHead import PrinterHead
 
 
 class AutomatedSCA:
@@ -20,14 +20,14 @@ class AutomatedSCA:
         higher-level functions in microscopeDriver
     """
     def __init__(self, plateSize, numChan, chanDist, 
-                priorPort: str = "COM6", arduinoPort="COM7"):
+                priorPort: str = "COM4", arduinoPort="COM5"):
         """
         Initialize all devices for microscope
         Also starts z axis arm calibration TODO: I suggest doing this manually
 
-        :param priorPort: COM port of stage, defaults to "COM6"
+        :param priorPort: COM port of stage, defaults to "COM4"
         :type priorPort: str, optional
-        :param arduinoPort: COM port of arduino, defaults to "COM7"
+        :param arduinoPort: COM port of arduino, defaults to "COM5"
         :type arduinoPort: str, optional
         :raises ConnectionError: when unable to connect to a device
         """
@@ -36,6 +36,8 @@ class AutomatedSCA:
 
         if plateSize == 6:
             self.plate: Plate = Plate6()
+        elif plateSize == 12:
+            self.plate: Plate = Plate12()
         elif plateSize == 96:
             self.plate: Plate = Plate96()
         else:
@@ -57,7 +59,7 @@ class AutomatedSCA:
                 self.priorController.close()
                 raise ConnectionError(err)
 
-            self.printer: PrinterHead = PrinterHead(priorController=self.priorController)
+            # self.printer: PrinterHead = PrinterHead(priorController=self.priorController)
 
         except serial.SerialException as err:
             raise ConnectionError(err)
@@ -161,21 +163,21 @@ class AutomatedSCA:
         """
         self.arm.moveZUpPos()
 
-    def printSample(self, channelNum: int, save=True):
-        """
-        Applies a voltage to the printer head, printing a
-        single cell. Also updates the stored contents of the chip. 
-        Assumes the printer head is already in the correct position.
+    # def printSample(self, channelNum: int, save=True):
+    #     """
+    #     Applies a voltage to the printer head, printing a
+    #     single cell. Also updates the stored contents of the chip. 
+    #     Assumes the printer head is already in the correct position.
 
-        ASSUME that sample is perfect
+    #     ASSUME that sample is perfect
 
-        :param channelNum: channel printer head is currently over, only 
-        used to update stored contents of chip
-        :type channelNum: int
-        """
-        if (save):
-            self.chip.fillChannel(channelNum, self.currentSample)
-        self.printer.printSingleDrop()
+    #     :param channelNum: channel printer head is currently over, only 
+    #     used to update stored contents of chip
+    #     :type channelNum: int
+    #     """
+    #     if (save):
+    #         self.chip.fillChannel(channelNum, self.currentSample)
+    #     self.printer.printSingleDrop()
 
     def getSample(self, wellID: str):
         """
@@ -187,19 +189,19 @@ class AutomatedSCA:
         update the contents of the printer head, does NOT move to wellID
         :type wellID: string
         """
-        self.printer.getSample()
+        # self.printer.getSample()
         # update which sample is stored in the printer
         self.currentSample = wellID
 
-    def dispenseSample(self):
-        """
-        Applies a positive pressure, dispensing all of the currently
-        held sample.
-        """
-        self.printer.dispenseSample()
-        self.currentSample = self.chip.CHAN_EMPTY
-        # self.currentSample = "dirty" ???
-        # TODO: add cleaning feature
+    # def dispenseSample(self):
+    #     """
+    #     Applies a positive pressure, dispensing all of the currently
+    #     held sample.
+    #     """
+    #     self.printer.dispenseSample()
+    #     self.currentSample = self.chip.CHAN_EMPTY
+    #     # self.currentSample = "dirty" ???
+    #     # TODO: add cleaning feature
 
     def moveToSafePositions(self):
         # TODO: add a function in movement/arm to move up to a
@@ -225,7 +227,7 @@ class AutomatedSCA:
         """
         # self.moveToSafePositions()
         self.arm.close()
-        self.printer.close()
+        # self.printer.close()
         self.priorController.close()
         # self.pressure.close()
 
@@ -291,6 +293,21 @@ class AutomatedSCA:
         # TODO: implement this soon using well center algo
         self.stage.calibFirstWellCamPos(self.stage.getStageXY())
 
+    def saveFiducialLocation(self):
+        """
+        saves the current stage position as the position
+        of the stage such that the fiducial marker
+        is focused on the camera
+        """
+        self.stage.calibFiducialCamPos(self.stage.getStageXY())
+
+    def savePenLocation(self):
+        """
+        saves the current stage position as the position
+        of the stage such that the pen is focused on the camera
+        """
+        self.stage.calibPenPos(self.stage.getStageXY())
+
     def calibFirstChannelCam(self):
         """
         saves the current stage position as the
@@ -298,24 +315,24 @@ class AutomatedSCA:
         """
         self.stage.calibFirstChannelCamPos()
 
-    def calibVoltage(self, voltage: float):
-        """
-        Saves the voltage needed to print a single drop
+    # def calibVoltage(self, voltage: float):
+    #     """
+    #     Saves the voltage needed to print a single drop
 
-        Reminder: we still need to use JetServer
-        """
-        # NOTE: right now voltage is triggered through JetServer,
-        # so we aren't in control of the voltage from python
-        # meaning this function might not be necessary
+    #     Reminder: we still need to use JetServer
+    #     """
+    #     # NOTE: right now voltage is triggered through JetServer,
+    #     # so we aren't in control of the voltage from python
+    #     # meaning this function might not be necessary
 
-        raise NotImplementedError("printer head not implemented yet")
+    #     raise NotImplementedError("printer head not implemented yet")
 
-    def calibPressureSystem(self):
-        self.printer.calibPressureSystem()
+    # def calibPressureSystem(self):
+    #     self.printer.calibPressureSystem()
 
-    def calibPressureValues(self, inP, eqP, outP):
-        """
-        Saves the pressure to suck in, the pressure to suck out,
-        and the pressure to maintain equilibrium (holding fluid in place)
-        """
-        self.printer.calibPressureVals(inP, eqP, outP)
+    # def calibPressureValues(self, inP, eqP, outP):
+    #     """
+    #     Saves the pressure to suck in, the pressure to suck out,
+    #     and the pressure to maintain equilibrium (holding fluid in place)
+    #     """
+    #     self.printer.calibPressureVals(inP, eqP, outP)
