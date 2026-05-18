@@ -14,6 +14,7 @@ from microscopeDriver import MicroscopeDriver
 from stage import *
 from stepper import *
 from arm import *
+from plate import *
 from gui_widgets.camWidget import CamWidget
 from gui_widgets.wellSelect import WellSelect
 
@@ -125,7 +126,7 @@ class HighLevel(ttk.LabelFrame):
 
             plateFrame = ttk.LabelFrame(self, text="Plate")
             self.wellSize = tk.StringVar()
-            dd = ttk.OptionMenu(plateFrame, self.wellSize, "96 wells", "6 wells" , "96 wells", "384 wells")
+            dd = ttk.OptionMenu(plateFrame, self.wellSize, "384 wells", "6 wells" , "96 wells", "384 wells")
             dd.pack(expand=True, fill="both")
             grid(plateFrame, 1, 0, 5, 5)
 
@@ -191,123 +192,803 @@ class HighLevel(ttk.LabelFrame):
                 # some popup window saying something went wrong
                 messagebox.showerror(title="connection error", message="either COM ports are incorrect or devices are accessed by another resource")
 
+# class SingleToMultiple(ttk.LabelFrame):
+#     def __init__(self, parent):
+#         ttk.Labelframe.__init__(self, parent, text="Print single sample to multiple channels")
+
+#         for i in range(4): self.rowconfigure(i, weight=1)
+#         self.columnconfigure(0, weight=1)
+
+#         s2mEntLabel = ttk.Label(self, text="choose sample", anchor="center")
+#         grid(s2mEntLabel, 0, 0, 0, 5, sticky='ew')
+
+#         self.s2mWellEntry = ttk.Entry(self)
+#         grid(self.s2mWellEntry, 1, 0, 0, 5, sticky='ew')
+
+
+#         s2mChanEntLabel = ttk.Label(self, text="list of channels", anchor="center")
+#         grid(s2mChanEntLabel, 2, 0, 0, 5, sticky='ew')
+
+#         self.s2mChanEntry = ttk.Entry(self)
+#         self.s2mChanEntry["state"] = "disabled"
+#         grid(self.s2mChanEntry, 3, 0, 0, 5, sticky='ew')
+
+#         goBtn = ttk.Button(self, text="start", command=self.printSingleToMultiple)
+#         grid(goBtn, 4, 0, 0,0)
+
+#         for child in self.winfo_children(): ARM_ENABLES.append(child)
+
+#     def printSingleToMultiple(self):
+#         sample = self.s2mWellEntry.get()
+#         channels = self.s2mChanEntry.get()
+#         def cb():
+#             interruptBtn["state"] = "disabled"
+#             for btn in STARTUP_DISABLED_BUTTONS: btn["state"] = "normal"
+
+#         try:
+#             for btn in STARTUP_DISABLED_BUTTONS: btn["state"] = "disabled"
+#             interruptBtn["state"] = "normal"
+#             driver.printToMultipleChannels(sample, channels, cb)
+
+#         except Exception as e:
+#             messagebox.showerror(title="error", message=str(e))
+
 class SingleToMultiple(ttk.LabelFrame):
     def __init__(self, parent):
-        ttk.Labelframe.__init__(self, parent, text="Print single sample to multiple channels")
+        ttk.LabelFrame.__init__(self, parent, text="Print single sample to multiple channels")
 
-        for i in range(4): self.rowconfigure(i, weight=1)
+        for i in range(6): self.rowconfigure(i, weight=1)
         self.columnconfigure(0, weight=1)
 
-        s2mEntLabel = ttk.Label(self, text="choose sample", anchor="center")
+        # Sample well selection
+        s2mEntLabel = ttk.Label(self, text="Choose sample well (e.g., A1)", anchor="center")
         grid(s2mEntLabel, 0, 0, 0, 5, sticky='ew')
 
         self.s2mWellEntry = ttk.Entry(self)
+        self.s2mWellEntry.insert(0, "A1")  # Default value
         grid(self.s2mWellEntry, 1, 0, 0, 5, sticky='ew')
 
+        # Number of channels
+        numChanLabel = ttk.Label(self, text="Number of channels to print", anchor="center")
+        grid(numChanLabel, 2, 0, 0, 5, sticky='ew')
 
-        s2mChanEntLabel = ttk.Label(self, text="list of channels", anchor="center")
-        grid(s2mChanEntLabel, 2, 0, 0, 5, sticky='ew')
+        self.numChannelsEntry = ttk.Entry(self)
+        self.numChannelsEntry.insert(0, "40")  # Default value
+        grid(self.numChannelsEntry, 3, 0, 0, 5, sticky='ew')
 
-        self.s2mChanEntry = ttk.Entry(self)
-        self.s2mChanEntry["state"] = "disabled"
-        grid(self.s2mChanEntry, 3, 0, 0, 5, sticky='ew')
+        # Optional: Starting channel
+        startChanLabel = ttk.Label(self, text="Starting channel (1-40)", anchor="center")
+        grid(startChanLabel, 4, 0, 0, 5, sticky='ew')
 
-        goBtn = ttk.Button(self, text="start", command=self.printSingleToMultiple)
-        grid(goBtn, 4, 0, 0,0)
+        self.startChannelEntry = ttk.Entry(self)
+        self.startChannelEntry.insert(0, "1")  # Default: start from first channel
+        grid(self.startChannelEntry, 5, 0, 0, 5, sticky='ew')
 
-        for child in self.winfo_children(): ARM_ENABLES.append(child)
+        # Start button
+        goBtn = ttk.Button(self, text="Start Printing", command=self.printSingleToMultiple)
+        grid(goBtn, 6, 0, 0, 0)
+
+        # Status label
+        self.statusLabel = ttk.Label(self, text="Status: Ready", anchor="center")
+        grid(self.statusLabel, 7, 0, 0, 5, sticky='ew')
+
+        for child in self.winfo_children(): 
+            ARM_ENABLES.append(child)
+
+        # Control flag
+        self.running = False
+
+    def update_status(self, msg):
+        self.statusLabel.config(text=f"Status: {msg}")
+        self.statusLabel.update_idletasks()
 
     def printSingleToMultiple(self):
-        sample = self.s2mWellEntry.get()
-        channels = self.s2mChanEntry.get()
-        def cb():
-            interruptBtn["state"] = "disabled"
-            for btn in STARTUP_DISABLED_BUTTONS: btn["state"] = "normal"
+        # Get user inputs, for now this is what the well position user enters in calibration
+        # sample_well = driver.saveFirstWellCamPos()
+        sample_well = self.s2mWellEntry.get().strip().upper()
 
         try:
-            for btn in STARTUP_DISABLED_BUTTONS: btn["state"] = "disabled"
+            num_channels = int(self.numChannelsEntry.get())
+            start_channel = int(self.startChannelEntry.get())
+            
+            if num_channels < 1 or num_channels > 40:
+                raise ValueError("Number of channels must be between 1 and 40")
+            if start_channel < 1 or start_channel > 40:
+                raise ValueError("Starting channel must be between 1 and 40")
+            if start_channel + num_channels - 1 > 40:
+                raise ValueError(f"Cannot print {num_channels} channels starting from channel {start_channel}")
+                
+        except ValueError as e:
+            messagebox.showerror("Invalid Input", str(e))
+            return
+
+        # Validate sample well format (e.g., A1, B12)
+        if not sample_well or len(sample_well) < 2:
+            messagebox.showerror("Invalid Input", "Please enter a valid well ID (e.g., A1)")
+            return
+
+        def cb():
+            interruptBtn["state"] = "disabled"
+            for btn in STARTUP_DISABLED_BUTTONS: 
+                btn["state"] = "normal"
+            self.update_status("Complete")
+
+        try:
+            for btn in STARTUP_DISABLED_BUTTONS: 
+                btn["state"] = "disabled"
             interruptBtn["state"] = "normal"
-            driver.printToMultipleChannels(sample, channels, cb)
+            self.running = True
+            
+            # Run in thread
+            threading.Thread(
+                target=self.run_print_sequence,
+                args=(sample_well, num_channels, start_channel, cb),
+                daemon=False
+            ).start()
 
         except Exception as e:
-            messagebox.showerror(title="error", message=str(e))
-class PrintEachToK(ttk.Labelframe):
+            messagebox.showerror(title="Error", message=str(e))
+            cb()
+
+    def run_print_sequence(self, sample_well, num_channels, start_channel, callback):
+        """Execute the printing sequence"""
+        try:
+            # Get references
+            zm = driver.microscope.arm.zmotor
+            s = driver.microscope.stage
+            plate = driver.microscope.plate
+            
+            safe_z = driver.safe_z
+            in_well_z = driver.in_well_z
+            spot_z = driver.spot_z
+
+            if not all([safe_z, in_well_z, spot_z]):
+                raise ValueError("Z heights not calibrated. Please save all Z heights first.")
+            # Get calibrated values (you'll need to store these during calibration)
+            # safe_z = driver.saveSafeZPosition() * 1000 # Get from wherever you store it
+            # print("safe_z",safe_z)
+            # in_well_z = driver.saveWellZPosition() * 1000
+            # print("in_well_z",in_well_z)
+            # spot_z = driver.saveChipZPosition() * 1000
+            # print("spot_z",spot_z)
+
+            # channel positions
+            first_channel_pos = s.firstChannelCamPos
+            channel_spacing = 260  # microns
+            
+            channel_positions = [] 
+            for i in range(start_channel - 1 + num_channels):
+                channel_positions.append((
+                    first_channel_pos[0] - i * channel_spacing,
+                    first_channel_pos[1]
+                ))
+
+            # pen offset
+            pen_cam_offset_xy = [
+                s.fiducialCamPos[0] - s.penPos[0],
+                s.fiducialCamPos[1] - s.penPos[1]
+                ]   
+
+            # Get well position
+            origin_xy = s.firstWellCamPos
+            
+            # Determine well spacing based on plate type
+            if hasattr(plate, '__class__'):
+                if 'Plate384' in plate.__class__.__name__:
+                    diam = 4500
+                elif 'Plate96' in plate.__class__.__name__:
+                    diam = 9000
+                elif 'Plate12' in plate.__class__.__name__:
+                    diam = 22000
+                else:
+                    diam = 39120
+            else:
+                diam = 4500
+
+            def well_id_to_index(well_id):
+                row = ord(well_id[0].upper()) - ord('A')
+                col = int(well_id[1:]) - 1
+                return row, col
+
+            def get_well_xy(well_id):
+                row, col = well_id_to_index(well_id)
+                x = origin_xy[0] + col * diam
+                y = origin_xy[1] + row * diam
+                return (x, y)
+
+            well_xy = get_well_xy(sample_well)
+
+            self.update_status(f"Printing {num_channels} channels from well {sample_well}")
+
+            # Main printing loop
+            for i, channel_xy in enumerate(channel_positions):
+                if not self.running:
+                    self.update_status("Aborted")
+                    return
+
+                channel_num = start_channel + i
+                
+                # Calculate pen position for this channel
+                channel_xy_pen = (
+                    channel_xy[0] - pen_cam_offset_xy[0],
+                    channel_xy[1] - pen_cam_offset_xy[1]
+                )
+
+                # --- Well step ---
+                self.update_status(f"Channel {channel_num}: Moving to well {sample_well}")
+                zm.moveToZInUM(safe_z)
+                s.moveToPos(well_xy[0], well_xy[1])
+                zm.moveToZInUM(in_well_z)
+                time.sleep(0.5)
+                zm.moveToZInUM(safe_z)
+                time.sleep(0.5)
+
+                if not self.running:
+                    return
+
+                # --- Channel step ---
+                self.update_status(f"Channel {channel_num}: Moving to channel")
+                s.moveToPos(channel_xy_pen[0], channel_xy_pen[1])
+                zm.moveToZInUM(spot_z)
+                # time.sleep(1)
+                zm.moveToZInUM(safe_z)
+                # time.sleep(1)
+
+                print(f"[Print] Completed channel {channel_num}")
+
+            self.update_status("Done - All channels printed")
+
+        except Exception as e:
+            messagebox.showerror("Printing Error", f"Failed:\n{e}")
+            self.update_status("Error")
+            import traceback
+            traceback.print_exc()
+        finally:
+            callback()
+            self.running = False
+
+    def abort_process(self):
+        """Stop the printing process"""
+        self.running = False
+        self.update_status("Aborting...")
+
+# class PrintEachToK(ttk.Labelframe):
+#     def __init__(self, parent):
+#         ttk.LabelFrame.__init__(self, parent, text="Multiple Sample Printing & Washing")
+#         for i in range(4): self.rowconfigure(i, weight=1)
+#         self.columnconfigure(0, weight=1)
+
+#         self.wellEnt = []
+
+#         self.wellSelectOpen = False
+
+#         self.openWellsBtn = ttk.Button(self, text="open well select menu", cursor="hand2", command=self.openWellSelectMenu)
+#         grid(self.openWellsBtn, 0, 0, 5, 5)
+
+#         self.selectedWellsList = ttk.Label(self, text="Selected wells:", font=("Roboto Mono","10"))
+#         grid(self.selectedWellsList, 1, 0, 5, 5)
+
+#         kLabel = ttk.Label(self, text="number of channels for each sample")
+#         grid(kLabel, 2, 0, 5, 5)
+
+#         self.kEnt = ttk.Entry(self)
+#         grid(self.kEnt, 3, 0, 5, 5)
+
+#         goBtn = ttk.Button(self, text="start", command=self.printToK)
+#         grid(goBtn, 4, 0, 0,0)
+
+#         self.chosenWells = []
+#         for child in self.winfo_children(): ARM_ENABLES.append(child)
+
+#     def openWellSelectMenu(self):
+#         def on_closing():
+#                 self.wellSelectMenu.destroy()
+#                 self.wellSelectOpen = False
+
+#         if not self.wellSelectOpen:
+#             self.wellSelectMenu = tk.Toplevel(root)
+#             self.wellSelectMenu.title("Well Select Menu")
+#             # NOTE: WellSelect is an imported class
+#             self.selectWidget = WellSelect(self.wellSelectMenu, plateSize=WELL_PLATE_SIZE)
+#             grid(self.selectWidget, 0,0,0,0)
+#             self.selectWidget.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
+
+#             saveBtn = ttk.Button(self.wellSelectMenu, text="save wells", command=self.saveWells)
+#             grid(saveBtn, 1, 0, 5, 5)
+
+#             cancelBtn = ttk.Button(self.wellSelectMenu, text="cancel", command=on_closing)
+#             grid(cancelBtn, 1, 1, 5, 5)
+            
+#             self.wellSelectMenu.protocol("WM_DELETE_WINDOW", on_closing)
+#             self.wellSelectOpen = True
+
+#     def saveWells(self):
+#         selected = self.selectWidget.getSelected()
+#         self.wellEnt = selected
+#         enIter = iter(self.wellEnt)
+#         wrapped = ""
+#         self.chosenWells = selected
+#         for i in range(len(self.wellEnt)):
+#             if i % 10 == 9: wrapped += '\n'
+#             wrapped += next(enIter) + ' '
+#         self.selectedWellsList.config(text=f"selected wells: {wrapped}")
+
+#     def printToK(self):
+#         def cb():
+#             interruptBtn["state"] = "disabled"
+#             for btn in STARTUP_DISABLED_BUTTONS: btn["state"] = "normal"
+
+#         k = self.kEnt.get()
+#         try:
+#             wells = self.chosenWells
+#             print(wells)
+#             for btn in STARTUP_DISABLED_BUTTONS: btn["state"] = "disabled"
+#             interruptBtn["state"] = "normal"
+
+#             driver.printSamplesToK(wells, k, cb)
+#         except Exception as e:
+#             messagebox.showerror(title="something went wrong", message=str(e))
+
+class PrintEachToK(ttk.LabelFrame):
     def __init__(self, parent):
-        ttk.LabelFrame.__init__(self, parent, text="Print Samples to K")
-        for i in range(4): self.rowconfigure(i, weight=1)
+        ttk.LabelFrame.__init__(self, parent, text="Multiple Solution Printing & Cleaning")
+        for i in range(6): self.rowconfigure(i, weight=1)
         self.columnconfigure(0, weight=1)
 
-        self.wellEnt = []
+        # Instructions
+        instructions = ttk.Label(self, text="Print multiple solutions to channels with automated cleaning", 
+                                font=("Roboto", "9"))
+        grid(instructions, 0, 0, 5, 5)
 
-        self.wellSelectOpen = False
+        # Number of solutions
+        numSolLabel = ttk.Label(self, text="Number of solutions to print (1-6)")
+        grid(numSolLabel, 1, 0, 5, 5)
 
-        self.openWellsBtn = ttk.Button(self, text="open well select menu", cursor="hand2", command=self.openWellSelectMenu)
-        grid(self.openWellsBtn, 0, 0, 5, 5)
+        self.numSolutionsEnt = ttk.Entry(self)
+        self.numSolutionsEnt.insert(0, "6")  # Default to 6
+        grid(self.numSolutionsEnt, 2, 0, 5, 5)
 
-        self.selectedWellsList = ttk.Label(self, text="Selected wells:", font=("Roboto Mono","10"))
-        grid(self.selectedWellsList, 1, 0, 5, 5)
+        # Number of cleaning wells
+        numCleanLabel = ttk.Label(self, text="Number of cleaning wells (1-12)")
+        grid(numCleanLabel, 3, 0, 5, 5)
 
-        kLabel = ttk.Label(self, text="number of channels for each sample")
-        grid(kLabel, 2, 0, 5, 5)
+        self.numCleaningWellsEnt = ttk.Entry(self)
+        self.numCleaningWellsEnt.insert(0, "6")  # Default to 6
+        grid(self.numCleaningWellsEnt, 4, 0, 5, 5)
 
-        self.kEnt = ttk.Entry(self)
-        grid(self.kEnt, 3, 0, 5, 5)
+        # Start button
+        self.startBtn = ttk.Button(self, text="Start Multi-Solution Printing", 
+                                   command=self.start_multi_solution_print)
+        grid(self.startBtn, 5, 0, 5, 5)
 
-        goBtn = ttk.Button(self, text="start", command=self.printToK)
-        grid(goBtn, 4, 0, 0,0)
+        # Cleaning only button
+        self.cleanBtn = ttk.Button(self, text="Cleaning Only", 
+                                   command=self.run_cleaning_only,
+                                   style="Accent.TButton")
+        grid(self.cleanBtn, 6, 0, 5, 5)
 
-        self.chosenWells = []
-        for child in self.winfo_children(): ARM_ENABLES.append(child)
+        # Abort button
+        self.abortBtn = ttk.Button(self, text="Abort", command=self.abort_process, 
+                                   state="disabled")
+        grid(self.abortBtn, 7, 0, 5, 5)
 
-    def openWellSelectMenu(self):
-        def on_closing():
-                self.wellSelectMenu.destroy()
-                self.wellSelectOpen = False
+        # Status label
+        self.statusLabel = ttk.Label(self, text="Status: Ready", anchor="center")
+        grid(self.statusLabel, 8, 0, 5, 5)
 
-        if not self.wellSelectOpen:
-            self.wellSelectMenu = tk.Toplevel(root)
-            self.wellSelectMenu.title("Well Select Menu")
-            # NOTE: WellSelect is an imported class
-            self.selectWidget = WellSelect(self.wellSelectMenu, plateSize=WELL_PLATE_SIZE)
-            grid(self.selectWidget, 0,0,0,0)
-            self.selectWidget.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
+        # Control flags
+        self.running = False
+        self.current_solution = 0
 
-            saveBtn = ttk.Button(self.wellSelectMenu, text="save wells", command=self.saveWells)
-            grid(saveBtn, 1, 0, 5, 5)
+        for child in self.winfo_children(): 
+            ARM_ENABLES.append(child)
 
-            cancelBtn = ttk.Button(self.wellSelectMenu, text="cancel", command=on_closing)
-            grid(cancelBtn, 1, 1, 5, 5)
-            
-            self.wellSelectMenu.protocol("WM_DELETE_WINDOW", on_closing)
-            self.wellSelectOpen = True
+    def update_status(self, msg):
+        self.statusLabel.config(text=f"Status: {msg}")
+        self.statusLabel.update_idletasks()
 
-    def saveWells(self):
-        selected = self.selectWidget.getSelected()
-        self.wellEnt = selected
-        enIter = iter(self.wellEnt)
-        wrapped = ""
-        self.chosenWells = selected
-        for i in range(len(self.wellEnt)):
-            if i % 10 == 9: wrapped += '\n'
-            wrapped += next(enIter) + ' '
-        self.selectedWellsList.config(text=f"selected wells: {wrapped}")
-
-    def printToK(self):
-        def cb():
-            interruptBtn["state"] = "disabled"
-            for btn in STARTUP_DISABLED_BUTTONS: btn["state"] = "normal"
-
-        k = self.kEnt.get()
+    def run_cleaning_only(self):
+        """Run cleaning cycle through all cleaning wells"""
         try:
-            wells = self.chosenWells
-            print(wells)
-            for btn in STARTUP_DISABLED_BUTTONS: btn["state"] = "disabled"
-            interruptBtn["state"] = "normal"
+            num_cleaning_wells = int(self.numCleaningWellsEnt.get())
+            
+            if num_cleaning_wells < 1 or num_cleaning_wells > 12:
+                messagebox.showerror("Invalid Input", 
+                                   "Number of cleaning wells must be between 1 and 12")
+                return
 
-            driver.printSamplesToK(wells, k, cb)
+            # Validate calibrations
+            if not driver or not driver.microscope:
+                messagebox.showerror("Error", "Microscope not initialized")
+                return
+
+            s = driver.microscope.stage
+            
+            if not all([s.firstWellCamPos, driver.safe_z, driver.in_well_z]):
+                messagebox.showerror("Calibration Required", 
+                                   "Missing required calibrations:\n- First well position\n- Safe Z\n- In-well Z")
+                return
+
+            response = messagebox.askyesno(
+                "Start Cleaning?",
+                f"Pen will clean in wells C1-C{num_cleaning_wells}.\n\nReady to start?"
+            )
+            
+            if not response:
+                return
+
+            # Disable/enable buttons
+            self.startBtn["state"] = "disabled"
+            self.cleanBtn["state"] = "disabled"
+            self.abortBtn["state"] = "normal"
+            
+            self.running = True
+            
+            # Run cleaning in thread
+            threading.Thread(
+                target=self.execute_cleaning_only,
+                args=(num_cleaning_wells,),
+                daemon=False
+            ).start()
+
+        except ValueError:
+            messagebox.showerror("Invalid Input", "Please enter a valid number")
         except Exception as e:
-            messagebox.showerror(title="something went wrong", message=str(e))
+            messagebox.showerror("Error", str(e))
 
+    def execute_cleaning_only(self, num_cleaning_wells):
+        """Execute cleaning sequence only"""
+        try:
+            zm = driver.microscope.arm.zmotor
+            s = driver.microscope.stage
+            plate = driver.microscope.plate
+            
+            safe_z = driver.safe_z
+            in_well_z = driver.in_well_z
+            first_well_pos = s.firstWellCamPos
+            
+            self.update_status(f"Cleaning in wells C1-C{num_cleaning_wells}")
+            print(f"Starting cleaning sequence: C1-C{num_cleaning_wells}")
+            
+            for cleaning_num in range(1, num_cleaning_wells + 1):
+                if not self.running:
+                    self.update_status("Aborted")
+                    return
+                
+                cleaning_well_id = f"C{cleaning_num}"
+                cleaning_well_xy = self.get_well_xy(cleaning_well_id, first_well_pos, plate)
+                
+                print(f"  Cleaning in well {cleaning_well_id}")
+                self.update_status(f"Cleaning in {cleaning_well_id} ({cleaning_num}/{num_cleaning_wells})")
+                
+                zm.moveToZInUM(safe_z)
+                if not self.running: return
+                
+                s.moveToPos(cleaning_well_xy[0], cleaning_well_xy[1])
+                if not self.running: return
+                
+                # Decrease Z by 0.5 mm (500 µm) each loop
+                z_offset = (cleaning_num - 1) * 500  # in microns
+                current_z = in_well_z - z_offset
+
+                zm.moveToZInUM(current_z)
+                if not self.running: return False
+
+                time.sleep(1)  # Rinse time
+                zm.moveToZInUM(safe_z)
+                if not self.running: return
+            
+            self.update_status("Cleaning complete!")
+            messagebox.showinfo("Complete", f"Cleaning cycle finished!")
+            print("Cleaning sequence complete")
+
+        except Exception as e:
+            messagebox.showerror("Cleaning Error", f"Failed:\n{e}")
+            self.update_status("Error")
+            import traceback
+            traceback.print_exc()
+        finally:
+            self.finish_process()
+
+    def start_multi_solution_print(self):
+        """Start the multi-solution printing process"""
+        try:
+            num_solutions = int(self.numSolutionsEnt.get())
+            num_cleaning_wells = int(self.numCleaningWellsEnt.get())
+
+            if num_solutions < 1 or num_solutions > 6:
+                messagebox.showerror("Invalid Input", 
+                                   "Number of solutions must be between 1 and 6")
+                return
+
+            # Validate calibrations
+            if not driver or not driver.microscope:
+                messagebox.showerror("Error", "Microscope not initialized")
+                return
+
+            s = driver.microscope.stage
+            
+            # Check all required calibrations
+            required_calibrations = {
+                "First well position": s.firstWellCamPos,
+                "First channel position": s.firstChannelCamPos,
+                "Pen offset": getattr(s, 'pen_offset_xy', None),
+                "Safe Z height": driver.safe_z,
+                "In-well Z height": driver.in_well_z,
+                "Spot Z height": driver.spot_z
+            }
+            
+            missing = [name for name, value in required_calibrations.items() if value is None]
+            
+            if missing:
+                messagebox.showerror("Calibration Required", 
+                                   f"Missing calibrations:\n" + "\n".join(f"- {m}" for m in missing))
+                return
+
+            # Show initial prompt
+            response = messagebox.askyesno(
+                "Ready to Start?",
+                f"You will print {num_solutions} solutions.\n\n"
+                f"Solutions will go in wells A1-A{num_solutions}\n"
+                f"Cleaning wells are C1-C{num_cleaning_wells}\n\n"
+                f"Please load solution 1 into well A1.\n\n"
+                f"Ready to begin?"
+            )
+            
+            if not response:
+                return
+
+            # Disable/enable buttons
+            self.startBtn["state"] = "disabled"
+            self.cleanBtn["state"] = "disabled"
+            self.abortBtn["state"] = "normal"
+            
+            self.running = True
+            
+            # Start the process in a thread
+            threading.Thread(
+                target=self.run_multi_solution_sequence,
+                args=(num_solutions,),
+                daemon=False
+            ).start()
+
+        except ValueError:
+            messagebox.showerror("Invalid Input", "Please enter a valid number")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def run_multi_solution_sequence(self, num_solutions):
+        """Execute the full multi-solution printing sequence"""
+        try:
+            for solution_num in range(1, num_solutions + 1):
+                if not self.running:
+                    self.update_status("Aborted")
+                    return
+
+                self.current_solution = solution_num
+                self.update_status(f"Processing solution {solution_num}/{num_solutions}")
+                
+                # Print this solution
+                success = self.print_one_solution(solution_num)
+                
+                if not success:
+                    self.update_status("Aborted")
+                    return
+
+                # After solution is done, prompt for next (if not last)
+                if solution_num < num_solutions:
+                    if not self.running:
+                        return
+                    
+                    # Use a thread-safe way to show dialog
+                    self.wait_for_next_solution(solution_num + 1)
+
+            self.update_status("Complete - All solutions printed!")
+            messagebox.showinfo("Complete", 
+                              f"Successfully printed all {num_solutions} solutions!")
+
+        except Exception as e:
+            messagebox.showerror("Printing Error", f"Failed:\n{e}")
+            self.update_status("Error")
+            import traceback
+            traceback.print_exc()
+        finally:
+            self.finish_process()
+
+    def wait_for_next_solution(self, next_solution_num):
+        """Prompt user to load next solution"""
+        # This needs to run on main thread for dialog
+        ready = [False]
+        
+        def prompt():
+            if not self.running:
+                return
+            response = messagebox.askyesno(
+                f"Load Solution {next_solution_num}",
+                f"Solution {next_solution_num - 1} complete!\n\n"
+                f"Please load solution {next_solution_num} into well A{next_solution_num}.\n\n"
+                f"Ready to continue?",
+                parent=self
+            )
+            ready[0] = response
+            if not response:
+                self.running = False
+        
+        # Schedule on main thread and wait
+        self.after(0, prompt)
+        
+        # Wait for user response
+        while not ready[0] and self.running:
+            time.sleep(0.1)
+
+    def print_one_solution(self, solution_num):
+        """Print one solution to its pattern of channels with cleaning at the end"""
+        try:
+            # Get references
+            zm = driver.microscope.arm.zmotor
+            s = driver.microscope.stage
+            plate = driver.microscope.plate
+            
+            # Get calibrated values
+            safe_z = driver.safe_z
+            in_well_z = driver.in_well_z
+            spot_z = driver.spot_z
+            
+            first_channel_pos = s.firstChannelCamPos
+            first_well_pos = s.firstWellCamPos
+            pen_offset = s.pen_offset_xy
+            
+            # number of cleaning wells
+            num_cleaning_wells = int(self.numCleaningWellsEnt.get())
+
+            # Constants
+            channel_spacing = 260  # microns
+            num_solutions = int(self.numSolutionsEnt.get())
+            total_channels = 40
+            
+            # Get well position for this solution
+            solution_well_id = f"A{solution_num}"
+            solution_well_xy = self.get_well_xy(solution_well_id, first_well_pos, plate)
+            
+            # Get channels for this solution
+            channels = self.get_channel_pattern(solution_num, num_solutions, total_channels)
+            
+            print(f"Solution {solution_num}: Will print to channels {channels}")
+            self.update_status(f"Solution {solution_num}: Printing to {len(channels)} channels")
+            
+            # Print to each channel
+            for idx, channel_num in enumerate(channels):
+                if not self.running:
+                    return False
+                
+                self.update_status(f"Solution {solution_num}: Channel {channel_num} ({idx+1}/{len(channels)})")
+                
+                # Calculate channel position
+                channel_xy_pen = self.get_channel_xy_pen(
+                    channel_num, first_channel_pos, pen_offset, channel_spacing
+                )
+                
+                # 1. Aspirate from solution well
+                print(f"  Aspirating from well {solution_well_id}")
+                zm.moveToZInUM(safe_z)
+                if not self.running: return False
+                
+                s.moveToPos(solution_well_xy[0], solution_well_xy[1])
+                if not self.running: return False
+                
+                zm.moveToZInUM(in_well_z)
+                if not self.running: return False
+                
+                time.sleep(0.1)  # Brief aspirate
+                zm.moveToZInUM(safe_z)
+                if not self.running: return False
+                
+                # 2. Dispense to channel
+                print(f"  Dispensing to channel {channel_num}")
+                s.moveToPos(channel_xy_pen[0], channel_xy_pen[1])
+                if not self.running: return False
+                
+                zm.moveToZInUM(spot_z)
+                if not self.running: return False
+                
+                time.sleep(1)  # Dispense time
+                zm.moveToZInUM(safe_z)
+                if not self.running: return False
+            
+            # 3. Clean in all cleaning wells
+            self.update_status(f"Solution {solution_num}: Cleaning in wells")
+            print(f"Solution {solution_num}: Cleaning in wells")
+            
+            for cleaning_num in range(1, num_cleaning_wells + 1):
+                if not self.running:
+                    return False
+                
+                cleaning_well_id = f"C{cleaning_num}"
+                cleaning_well_xy = self.get_well_xy(cleaning_well_id, first_well_pos, plate)
+                
+                print(f"  Cleaning in well {cleaning_well_id}")
+                self.update_status(f"Solution {solution_num}: Cleaning in {cleaning_well_id}")
+                
+                zm.moveToZInUM(safe_z)
+                if not self.running: return False
+                
+                s.moveToPos(cleaning_well_xy[0], cleaning_well_xy[1])
+                if not self.running: return False
+                
+                # Decrease Z by 0.5 mm (500 µm) each loop
+                z_offset = (cleaning_num - 1) * 500  # in microns
+                current_z = in_well_z - z_offset
+
+                zm.moveToZInUM(current_z)
+                if not self.running: return False
+                
+                time.sleep(1)  # Rinse time
+                zm.moveToZInUM(safe_z)
+                if not self.running: return False
+            
+            print(f"Solution {solution_num} complete!")
+            return True
+
+        except Exception as e:
+            print(f"Error in print_one_solution: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
+    # Helper functions
+    def get_channel_pattern(self, solution_num, num_solutions, total_channels):
+        """Get list of channel numbers for this solution"""
+        channels = []
+        for i in range(solution_num, total_channels + 1, num_solutions):
+            channels.append(i)
+        return channels
+
+    def get_well_xy(self, well_id, first_well_pos, plate):
+        """Calculate well position from well ID"""
+        # Determine spacing
+        if 'Plate384' in plate.__class__.__name__:
+            diam = 4500
+        elif 'Plate96' in plate.__class__.__name__:
+            diam = 9000
+        elif 'Plate12' in plate.__class__.__name__:
+            diam = 22000
+        else:
+            diam = 39120
+        
+        row = ord(well_id[0].upper()) - ord('A')
+        col = int(well_id[1:]) - 1
+        
+        x = first_well_pos[0] - col * diam
+        y = first_well_pos[1] - row * diam
+        return (x, y)
+
+    def get_channel_xy_pen(self, channel_num, first_channel_pos, pen_offset, channel_spacing):
+        """Calculate channel position with pen offset applied"""
+        # Camera position
+        offset = (channel_num - 1) * channel_spacing
+        cam_x = first_channel_pos[0] - offset
+        cam_y = first_channel_pos[1]
+        
+        # Apply pen offset
+        pen_x = cam_x - pen_offset[0]
+        pen_y = cam_y - pen_offset[1]
+        
+        return (pen_x, pen_y)
+
+    def abort_process(self):
+        """Stop the printing process"""
+        self.running = False
+        self.update_status("Aborting...")
+        print("Abort requested by user")
+
+    def finish_process(self):
+        """Re-enable buttons after process completes"""
+        self.startBtn["state"] = "normal"
+        self.abortBtn["state"] = "disabled"
+        for btn in STARTUP_DISABLED_BUTTONS:
+            btn["state"] = "normal"
+        self.running = False
+        
 class CalibrationFrame(ttk.LabelFrame):
     def __init__(self, parent):
         ttk.LabelFrame.__init__(self, parent, text="Calibration and Sanity checks")
@@ -390,11 +1071,12 @@ class CalibrationMenu(ttk.Frame):
         getSample = self.ManualGetSample(self, self.buttons)
         getSample.grid(row=2, column=0, rowspan=1, sticky='nsew', padx=5, pady=5)
 
-        armPos = self.ArmPositions(self, self.buttons)
-        armPos.grid(row=1, column=1, sticky='nsew')
-
         printDrop = self.PrintDropTest(self, self.buttons)
         printDrop.grid(row=2, column=1, rowspan=2, padx=5, pady=5, sticky='nsew')
+
+        armPos = self.ArmPositions(self, self.buttons, printDrop)
+        armPos.grid(row=1, column=1, sticky='nsew')
+
   
         # pressureCal = self.PressureCalibration(self, self.buttons)
         # pressureCal.grid(row=2, column=0, rowspan=1, sticky='nsew', padx=5, pady=5)
@@ -420,7 +1102,7 @@ class CalibrationMenu(ttk.Frame):
         driver.calibrateZArm(cb)
 
     class ArmPositions(ttk.LabelFrame):
-        def __init__(self, parent, calibButtons):
+        def __init__(self, parent, calibButtons, processController):
             # TODO: somehow need to load these from a file to fill entries
             # or a button that pops up a window that will list them out
             ttk.LabelFrame.__init__(self, parent, text="Save arm Heights (mm)")
@@ -428,6 +1110,7 @@ class CalibrationMenu(ttk.Frame):
             description.grid(row=0, column=0, columnspan=3, sticky='nsew')
 
             self.calibButtons = calibButtons
+            self.process = processController
 
             # grid(description, 0, 0, 5, 5)
             self.upEnt = ttk.Entry(self)
@@ -467,6 +1150,8 @@ class CalibrationMenu(ttk.Frame):
             try:
                 pos = float(pos)
                 driver.saveSafeZPosition(pos)
+                driver.safe_z = pos * 1000 # convert to microns
+                self.process.set_z_heights(safe_z=pos)
             except Exception as e:
                 messagebox.showerror(title="Error saving value", message=str(e))
 
@@ -475,6 +1160,8 @@ class CalibrationMenu(ttk.Frame):
             try:
                 pos = float(pos)
                 driver.saveChipZPosition(pos)
+                driver.spot_z = pos * 1000
+                self.process.set_z_heights(spot_z=pos)
             except Exception as e:
                 messagebox.showerror(title="Error saving value", message=str(e))
         
@@ -483,6 +1170,8 @@ class CalibrationMenu(ttk.Frame):
             try:
                 pos = float(pos)
                 driver.saveWellZPosition(pos)
+                driver.in_well_z = pos * 1000
+                self.process.set_z_heights(in_well_z=pos)
             except Exception as e:
                 messagebox.showerror(title="Error saving value", message=str(e))
             
@@ -507,7 +1196,7 @@ class CalibrationMenu(ttk.Frame):
             chipPos = (driver.microscope.arm.zChannelPos * driver.microscope.arm.zmotor.stepper.distPerStep) / 1000
             wellPos = (driver.microscope.arm.zWellPos * driver.microscope.arm.zmotor.stepper.distPerStep) / 1000
 
-            messagebox.showinfo(title="Saved Positions", message=f"safe: {upPos}mm \nabove chip: {chipPos}mm \nin well: {wellPos}mm")
+            messagebox.showinfo(title="Saved Positions", message=f"safe: {upPos}mm \non chip: {chipPos}mm \nin well: {wellPos}mm")
 
         def showCurrentPosition(self):
             pos = driver.microscope.arm.zmotor.getZPosInUM() / 1000
@@ -544,13 +1233,16 @@ class CalibrationMenu(ttk.Frame):
             self.spotBtn = ttk.Button(self, text="save current position as 'spot location'", command=self.savespotCamPos)
             grid(self.spotBtn, 6, 0, 5, 5)
 
+            self.offsetBtn = ttk.Button(self, text="click to calculate 'printer offset'", command=self.savepenOffset)
+            grid(self.offsetBtn, 7, 0, 5, 5)
+
             resetfirstchanLab = ttk.Label(self, text="Move stage so that the first channel is centered in the camera view, \n then hit \"save current position as 'first channel'\"")
-            grid(resetfirstchanLab, 7, 0, 5, 5)
+            grid(resetfirstchanLab, 8, 0, 5, 5)
 
             self.firstChanBtn = ttk.Button(self, text="save current position as 'first channel'", command=self.saveFirstChannelCamPos)
-            grid(self.firstChanBtn, 8, 0, 5, 5)
+            grid(self.firstChanBtn, 9, 0, 5, 5)
 
-            calibButtons.extend([self.firstChanBtn, self.firstWellBtn])
+            calibButtons.extend([self.firstChanBtn, self.firstWellBtn, self.offsetBtn])
             # calibButtons.extend([self.resetStageBtn, self.firstChanBtn, self.firstWellBtn])
 
         def resetStagePositioning(self):
@@ -575,10 +1267,18 @@ class CalibrationMenu(ttk.Frame):
             driver.savePenstagePos()
             CALIB_DICT["pen"].config(text=f"pen: {CALIBRATED}", background="#65d92b")
 
-        # def savepenOffset(self):
-        #     self.pen_offset_xy = [driver.saveFiducialCamPos - driver.savePenstagePos for driver.saveFiducialCamPos, driver.savePenstagePos in zip(driver.saveFiducialCamPos, driver.savePenstagePos)]
-        #     driver.saveOffset(self.pen_offset_xy[0], self.pen_offset_xy[1])
-        #     CALIB_DICT["printer offset"].config(text=f"printer offset: {CALIBRATED}", background="#65d92b")
+        def savepenOffset(self):
+            driver.saveOffset() 
+            # Check if both positions are saved
+            spot_pos = driver.microscope.stage.fiducialCamPos
+            pen_pos = driver.microscope.stage.penPos
+    
+            if spot_pos is None or pen_pos is None:
+                messagebox.showerror("Error", "Please save both pen and spot positions first!")
+                return
+            
+            driver.saveOffset() 
+            CALIB_DICT["pen offset"].config(text=f"pen offset: {CALIBRATED}", background="#65d92b")
 
     # class PressureCalibration(ttk.LabelFrame):
     #     def __init__(self, parent, calibButtons):
@@ -767,8 +1467,6 @@ class CalibrationMenu(ttk.Frame):
             ttk.LabelFrame.__init__(self, parent, text="Automated Spot Calibration")
             self.columnconfigure(0, weight=1)
             self.calibButtons = calibButtons
-            self.zm = ZMotor
-            self.s = Stage
 
             # parameters (loaded later)
             self.safe_z = None
@@ -776,6 +1474,7 @@ class CalibrationMenu(ttk.Frame):
             self.spot_z = None
             self.well_pos = None
             self.pen_pos = None
+
             self.spot_dwell_time = 1.0  # seconds, default
 
             self.instructions = ttk.Label(self, text="After defining first well, pen location, all the relevant heights. \n Proceed with this automated process.")
@@ -793,6 +1492,14 @@ class CalibrationMenu(ttk.Frame):
             # internal control
             self.running = False
 
+        def set_z_heights(self, safe_z=None, in_well_z=None, spot_z=None):
+            if safe_z is not None:
+                self.safe_z = int(safe_z * 1000)  # convert to microns
+            if in_well_z is not None:
+                self.in_well_z = int(in_well_z * 1000)
+            if spot_z is not None:
+                self.spot_z = int(spot_z * 1000)
+
             # ---------- HELPER METHODS ----------
         def load_positions(self, safe_z, in_well_z, spot_z, well_pos, pen_pos, spot_dwell_time=1.0):
             """Load all calibration values before running."""
@@ -809,12 +1516,16 @@ class CalibrationMenu(ttk.Frame):
 
         # ---------- MAIN PROCESS ----------
         def start_process(self):
+            if driver and driver.microscope:
+                self.well_pos = driver.microscope.stage.firstWellCamPos
+                self.pen_pos = driver.microscope.stage.penPos
+
             if not all([self.safe_z, self.in_well_z, self.spot_z, self.well_pos, self.pen_pos]):
                 messagebox.showerror("Missing data", "Please define all Z heights and positions first.")
                 return
 
-            if not self.zm or not self.s:
-                messagebox.showerror("Controller error", "Z motor or stage controller not initialized.")
+            if not driver or not driver.microscope:
+                messagebox.showerror("Controller error", "Microscope not initialized.")
                 return
 
             self.startBtn["state"] = "disabled"
@@ -822,39 +1533,46 @@ class CalibrationMenu(ttk.Frame):
             self.running = True
 
             # run in separate thread to avoid blocking UI
-            threading.Thread(target=self.run_sequence, daemon=True).start()
+            threading.Thread(target=self.run_sequence, daemon=False).start()
 
         def run_sequence(self):
             try:
+                safe_z = int(self.safe_z)
+                in_well_z = int(self.in_well_z)
+                spot_z = int(self.spot_z)
+
+                # Access zm and s from driver
+                zm = driver.microscope.arm.zmotor 
+                s = driver.microscope.stage
+
                 self.update_status("Moving to safe height")
-                self.zm.moveToZInUM(self.safe_z)
+                zm.moveToZInUM(safe_z)
                 if not self.running: return
 
                 self.update_status("Moving to first well")
-                self.s.moveToPos(self.well_pos[0], self.well_pos[1])
-                if not self.running: return
+                s.moveToPos(self.well_pos[0], self.well_pos[1])
 
                 self.update_status("Moving to in-well height")
-                self.zm.moveToZInUM(self.in_well_z)
+                zm.moveToZInUM(in_well_z)
                 time.sleep(1)
                 if not self.running: return
 
                 self.update_status("Moving up to safe height")
-                self.zm.moveToZInUM(self.safe_z)
+                zm.moveToZInUM(safe_z)
                 time.sleep(1)
                 if not self.running: return
 
                 self.update_status("Moving to pen spot position")
-                self.s.moveToPos(self.pen_pos[0], self.pen_pos[1])
+                s.moveToPos(self.pen_pos[0], self.pen_pos[1])
                 if not self.running: return
 
                 self.update_status("Spotting on chip")
-                self.zm.moveToZInUM(self.spot_z)
+                zm.moveToZInUM(spot_z)
                 time.sleep(self.spot_dwell_time)
                 if not self.running: return
 
                 self.update_status("Returning to safe height")
-                self.zm.moveToZInUM(self.safe_z)
+                zm.moveToZInUM(self.safe_z)
 
                 self.update_status("Done")
             except Exception as e:
@@ -871,216 +1589,6 @@ class CalibrationMenu(ttk.Frame):
             self.startBtn["state"] = "normal"
             self.abortBtn["state"] = "disabled"
 
-    # class PrintDropTest(ttk.LabelFrame):
-    #     def __init__(self, parent, calibButtons):
-    #         ttk.LabelFrame.__init__(self, parent, text="Automated Spot Calibration")
-    #         self.columnconfigure(0, weight=1)
-    #         self.calibButtons = calibButtons
-
-    #         # TODO: fill in instructions
-    #         self.instructions = ttk.Label(self, text="After defining first well, pen location, all the relevant heights. \n Proceed with this automated process.")
-    #         grid(self.instructions, 0, 0, 5, 0)
-
-    #         self.startBtn = ttk.Button(self, text="start", command=self.start)
-    #         grid(self.startBtn, 1, 0, 5, 0)
-
-    #         self.toChipBtn = ttk.Button(self, text="move arm down to chip\n(make sure arm is above chip before)", command=self.toChip)
-    #         grid(self.toChipBtn, 2, 0, 5, 0)
-    #         self.toChipBtn["state"] = "disabled"
-
-    #         # TODO: this should be its own frame (maybe)
-    #         # self.pressureFrame = ttk.LabelFrame(self, text="edit and set equilibrium pressure")
-    #         # for i in range(2): self.pressureFrame.columnconfigure(i, weight=1)
-    #         # self.eqPEnt = ttk.Entry(self.pressureFrame)
-    #         # grid(self.eqPEnt, 0, 0, 0, 0)
-    #         # self.eqPEnt["state"] = "disabled"
-    #         # self.eqPBtn = ttk.Button(self.pressureFrame, text="update", command=self.saveSetEqP) # save pressure value, then set to eqp pressure
-    #         # # NOTE: should probably limit eq pressure here between -20.0 to 20.0
-    #         # grid(self.eqPBtn, 0, 1, 0, 0)
-    #         # self.eqPBtn["state"] = "disabled"
-
-    #         # grid(self.pressureFrame, 3, 0, 5, 5)
-
-    #         self.printBtn = ttk.Button(self, text="trigger print", command=self.togglePrint)
-    #         grid(self.printBtn, 3, 0, 5, 0)
-    #         self.printBtn["state"] = "disabled"
-
-    #         self.gotoBtn = ttk.Button(self, text="show drop on cam", command=self.goto) # move arm up first # TODO: make a function in driver that moves up, then moves stage relatively by the negation of the offset
-    #         grid(self.gotoBtn, 4, 0, 5, 0)
-    #         self.gotoBtn["state"] = "disabled"
-
-    #         self.setPntBtn = ttk.Button(self, text="save offset (line up drop on cam)", command=self.setPnt)
-    #         grid(self.setPntBtn, 5, 0, 5, 0)
-    #         self.setPntBtn["state"] = "disabled"
-
-    #         self.upBtn = ttk.Button(self, text="move arm up", command=self.armUp)
-    #         grid(self.upBtn, 6, 0, 5, 0)
-    #         self.upBtn["state"] = "disabled"
-
-    #         self.abortBtn = ttk.Button(self, text="abort process", command=self.abort) # stops arm movement
-    #         # only enables done button, which will have an implicit moveArmUp command called
-    #         grid(self.abortBtn, 7, 0, 5, 0)
-    #         self.abortBtn["state"] = "disabled"
-
-    #         self.doneBtn = ttk.Button(self, text="done", command=self.done) 
-    #         grid(self.doneBtn, 8, 0, 5, 0) 
-    #         self.doneBtn["state"] = "disabled"
-
-    #         calibButtons.append(self.startBtn)
-    #         self.printLoc = (None, None)
-    #         self.offset = (None, None)
-
-    #         # some fake(?) offset values
-
-    #     def start(self):
-    #         # TODO: should abort only be clickable during arm moves?
-    #         # TODO: if I add a button to save the offset, then I don't need the entire drop offset menu
-    #         #       since drop offset will also need move up / down
-    #         self.abortBtn["state"] = "normal"
-    #         self.toChipBtn["state"] = "normal"
-    #         self.doneBtn["state"] = "normal"
-    #         for btn in self.calibButtons: btn["state"] = "disabled"
-
-    #     def toChip(self):
-    #         self.toChipBtn["state"] = "disabled"
-    #         interruptBtn["state"] = "normal"
-    #         # moveToSafeBtn["state"] = "disabled"
-    #         # cb
-    #         def cb():
-    #             self.upBtn["state"] = "normal"
-    #             self.printBtn["state"] = "normal"
-    #             self.eqPEnt["state"] = "normal"
-    #             self.eqPBtn["state"] = "normal"
-    #             interruptBtn["state"] = "disabled"
-    #             # moveToSafeBtn["state"] = "normal"
-
-    #         driver.movePrinterToChip(cb)
-
-    #     # def saveSetEqP(self):
-    #     #     # also perform checks on save pressure here
-    #     #     # TODO: new function in Pressure.py that lets you adjust equilibrium pressure rather than all three at once
-    #     #     # should call set pressure after saving the new pressure
-    #     #     pVal = self.eqPEnt.get()
-    #     #     try:
-    #     #         pVal = float(pVal)
-    #     #         if pVal < -20.0 or pVal > 20.0:
-    #     #             # TODO: have a confirm button
-    #     #             res:bool = messagebox.askokcancel(title="abnormal equilibrium pressure", message=f'You entered {pVal} for your equilibrium pressure, which is outside of the range [-20.0, 20.0]. High equilibrium pressures may cause unwanted behavior. Are you sure you want to use this value?')
-    #     #             if not res: return
-                
-    #     #         # TODO: here is where we set equilibrium pressure, need to implement first
-    #     #         driver.microscope.printer.pressure.saveAndSetEq(pVal)
-
-    #     #     except ValueError:
-    #     #         res = messagebox.showerror(title="bad input", message="Please be sure you entered a valid pressure value")
-
-    #     def togglePrint(self):
-    #         # disable everything, print a drop, re-enable
-    #         # also save where we printed ( for offset calculation )
-    #         self.upBtn["state"] = "disabled"
-    #         self.eqPEnt["state"] = "disabled"
-    #         self.eqPBtn["state"] = "disabled"
-    #         self.doneBtn["state"] = "disabled"
-    #         self.setPntBtn["state"] = "disabled"
-    #         self.gotoBtn["state"] = "disabled"
-    #         self.abortBtn["state"] = "disabled"
-
-    #         self.printLoc = driver.getStageXY()
-
-    #         def cb():
-    #             self.upBtn["state"] = "normal"
-    #             self.eqPEnt["state"] = "normal"
-    #             self.eqPBtn["state"] = "normal"
-    #             self.doneBtn["state"] = "normal"
-    #             self.abortBtn["state"] = "normal"
-    #             if self.printLoc != (None, None): self.setPntBtn["state"] = "normal"
-    #             # if self.offset != (None, None): self.gotoBtn["state"] = "normal"
-    #             self.gotoBtn["state"] = "normal" # just use previously loaded offset
-
-    #         driver.printDropNoMove(cb)
-
-    #     def goto(self):
-    #         self.upBtn["state"] = "disabled"
-    #         self.eqPEnt["state"] = "disabled"
-    #         self.eqPBtn["state"] = "disabled"
-    #         self.doneBtn["state"] = "disabled"
-    #         self.setPntBtn["state"] = "disabled"
-    #         self.gotoBtn["state"] = "disabled"
-    #         self.abortBtn["state"] = "disabled"
-    #         self.printBtn["state"] = "disabled"
-
-
-    #         def cb():
-    #             self.gotoBtn["state"] = "normal"
-    #             self.upBtn["state"] = "normal"
-    #             self.eqPEnt["state"] = "normal"
-    #             self.eqPBtn["state"] = "normal"
-    #             self.doneBtn["state"] = "normal"
-    #             self.setPntBtn["state"] = "normal"
-    #             self.abortBtn["state"] = "normal"
-    #             self.printBtn["state"] = "normal"
-
-    #         driver.moveDropToCam(self.printLoc, cb)
-
-    #     def setPnt(self):
-    #         loc = driver.getStageXY()
-    #         self.offset = (self.printLoc[0] - loc[0], self.printLoc[1] - loc[1])
-    #         driver.saveOffset(self.printLoc[0] - loc[0], self.printLoc[1] - loc[1])
-    #         # TODO: update calib dict
-    #         # CALIB_DICT["printer offset"].config(text=f"printer offset: {CALIBRATED}", background="#65d92b")
-
-
-    #     def armUp(self):
-    #         # moves up, cb disables all printing related buttons
-    #         self.printBtn["state"] = "disabled"
-    #         self.gotoBtn["state"] = "disabled"
-    #         self.setPntBtn["state"] = "disabled"
-    #         self.upBtn["state"] = "disabled"
-    #         self.eqPBtn["state"] = "disabled"
-    #         self.eqPEnt["state"] = "disabled"
-    #         self.doneBtn["state"] = "disabled"
-    #         interruptBtn["state"] = "normal"
-    #         # moveToSafeBtn["state"] = "disabled"
-
-    #         def cb():
-    #             self.doneBtn["state"] = "normal"
-    #             self.toChipBtn["state"] = "normal"
-    #             interruptBtn["state"] = "disabled"
-    #             # moveToSafeBtn["state"] = "normal"
-
-    #         driver.moveArmToUp(cb)
-
-    #     def abort(self):
-    #         # TODO: this button / function may not be necessary
-    #         # call interrupt, only enable done
-    #         def cb():
-    #             self.doneBtn["state"] = "normal"
-            
-    #         driver.interrupt(cb)
-
-    #     def done(self):
-    #         # cb(enable start, disable abort), done
-    #         # move arm up
-    #         self.doneBtn["state"] = "disabled"
-    #         self.upBtn["state"] = "disabled"
-    #         self.toChipBtn["state"] = "disabled"
-    #         self.printBtn["state"] = "disabled"
-    #         self.eqPBtn["state"] = "disabled"
-    #         self.eqPEnt["state"] = "disabled"
-    #         self.setPntBtn["state"] = "disabled"
-    #         interruptBtn["state"] = "normal"
-    #         # moveToSafeBtn["state"] = "disabled"
-
-    #         def cb():
-    #             self.startBtn["state"] = "normal"
-    #             self.abortBtn["state"] = "disabled"
-    #             for btn in self.calibButtons: btn["state"] = "normal"
-    #             interruptBtn["state"] = "disabled"
-    #             # moveToSafeBtn["state"] = "normal"
-
-    #         driver.moveArmToUp(cb)
-
-  
 class SanityMenu(ttk.Frame):
     def __init__(self, parent):
         ttk.Frame.__init__(self, parent)
@@ -1383,11 +1891,11 @@ class CalibratedList(ttk.LabelFrame):
         self.calibrations["first well"] = ttk.Label(self, text=f"first well: {LOADED}", background="#e39919")
         self.calibrations["first well"].pack(expand=True, fill='both')
 
-        self.calibrations["fiducial"] = ttk.Label(self, text=f"fiducial: {LOADED}", background="#e39919")
-        self.calibrations["fiducial"].pack(expand=True, fill='both')
+        self.calibrations["spot"] = ttk.Label(self, text=f"spot stage: {LOADED}", background="#e39919")
+        self.calibrations["spot"].pack(expand=True, fill='both')
 
-        self.calibrations["pen stage"] = ttk.Label(self, text=f"pen stage: {LOADED}", background="#e39919")
-        self.calibrations["pen stage"].pack(expand=True, fill='both')
+        self.calibrations["pen"] = ttk.Label(self, text=f"pen stage: {LOADED}", background="#e39919")
+        self.calibrations["pen"].pack(expand=True, fill='both')
 
         # self.calibrations["pressures"] = ttk.Label(self, text=f"pressures: {LOADED}", background="#e39919")
         # self.calibrations["pressures"].pack(expand=True, fill='both')
@@ -1635,8 +2143,8 @@ class AdditionalMenu(ttk.Frame):
         grid(moveYBtn, 0, 1, 5, 5)
         grid(moveYFrame, 1, 1, 5, 5)
 
-        resetArdBtn = ttk.Button(self, text="restart arduino", command=driver.reconnectArduino)
-        grid(resetArdBtn, 5, 1, 5, 5)
+        # resetArdBtn = ttk.Button(self, text="restart arduino", command=driver.reconnectArduino)
+        # grid(resetArdBtn, 5, 1, 5, 5)
 
         self.buttons = [self.armEnt, armBtn, aoBtn, self.armSEnt, armSBtn, stepbtn, 
                         # applyPressureBtn, 
@@ -1696,7 +2204,9 @@ class AdditionalMenu(ttk.Frame):
                 return
 
             for btn in self.buttons: btn["state"] = "disabled"
-            driver.printCurrToK(num, cb)
+            sample_well = "A1"
+
+            driver.printCurrToK(num, cb,sample_well)
         except Exception as e:
             messagebox.showerror(title="something went wrong", message=str(e))
 

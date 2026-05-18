@@ -29,7 +29,7 @@ class Stage:
 
     """
 
-    def __init__(self, plate: Plate, chip: Chip, priorController: serial.Serial, stepSize=0.04):
+    def __init__(self, plate: Plate, chip: Chip, priorController: serial.Serial, stepSize=1000.0):
         """Constructor
         """
         self.ser = priorController
@@ -75,11 +75,15 @@ class Stage:
             offsetY = printerDropY - focusedDropY
         :type offsetY: int
         """
-        self.pen_offset_xy = [self.fiducialCamPos - self.penPos for self.fiducialCamPos, self.penPos in zip(self.fiducialCamPos, self.penPos)]
+        self.pen_offset_xy = [
+        self.fiducialCamPos[0] - self.penPos[0],  # offsetX
+        self.fiducialCamPos[1] - self.penPos[1]   # offsetY
+        ]
         offsetX = self.pen_offset_xy[0]
         offsetY = self.pen_offset_xy[1]
         self.saveNewOffset(offsetX, offsetY)
-
+        return offsetX, offsetY
+    
     def calibOrigin(self):
         """Define origin for stage
 
@@ -91,48 +95,51 @@ class Stage:
         # NOTE: now, have user use joystick to move stage to real origin
         self.writeRead("P,0,0,0")  # Redefine this location as origin
 
-    def calibFirstWellCamPos(self):
+    def calibFirstWellCamPos(self,xy):
         # TODO: can we call self.getStageXY() here?
         """Save stage coordinates for well A1 when user moves well A1 under the pen
 
         :param stagePos: Stage coordinates for location of first well under pen
         :type stagePos: tuple
         """
-        self.firstWellCamPos = self.getStageXY()  # Stage coordinates for location of first well
-        self.saveNewFirstWellPos(stagePos=self.getStageXY())
+        self.firstWellCamPos = xy
+        self.saveNewFirstWellPos(stagePos=xy)
+        return xy
         # Stage coordinates for first well under printer head
         # self.firstWellPos = (
         #     stagePos[0]+self.printerOffset[0], stagePos[1]+self.printerOffset[1])
 
-    def calibFirstChannelCamPos(self):
+    def calibFirstChannelCamPos(self, xy):
         """Calibrate location of first channel under the camera
 
         TODO: this is a calibration function, possibly move
         """
-        stagePos = self.getStageXY()  # Stage coordinates for location of first channel under camera
-        self.firstChannelCamPos = tuple(stagePos)
-        self.saveNewFirstChannel(stagePos=stagePos)
+        self.firstChannelCamPos = tuple(xy)
+        return self.firstChannelCamPos
+        # stagePos = self.getStageXY()  # Stage coordinates for location of first channel under camera
+        # self.firstChannelCamPos = tuple(stagePos)
+        # self.saveNewFirstChannel(stagePos=stagePos)
         # return stagePos
         # self.firstChannelPos = (
         #     stagePos[0]+self.printerOffset[0], stagePos[1]+self.printerOffset[1])
 
-    def calibFiducialCamPos(self):
+    def calibFiducialCamPos(self,xy):
         """Calibrate location of fiducial marker under the camera
 
         :param stagePos: Stage coordinates for location of fiducial marker
         :type stagePos: tuple
         """
-        fiducialCamPos = self.getStageXY()
-        self.fiducialCamPos = tuple(fiducialCamPos)
+        self.fiducialCamPos = tuple(xy)
+        return self.fiducialCamPos
     
-    def calibPenPos(self):
+    def calibPenPos(self, xy):
         """Calibrate location of pen
 
-        :param stagePos: Stage coordinates for location of pen is centered with the fiducial marker
+        :param stagePos: Stage coordinates for location of pen 
         :type stagePos: tuple
         """
-        penPos = self.getStageXY()
-        self.penPos = tuple(penPos)
+        self.penPos = tuple(xy)
+        return self.penPos
     
     def moveToOrigin(self):
         """Move to origin
@@ -185,8 +192,8 @@ class Stage:
         :type chanNum: int
         """
         if self.isRealChannel(chanNum=chanNum):
-            yOffset = (chanNum - 1) * self.chanStepSize * -1
-            cmd = f"G,{self.firstChannelCamPos[0]},{self.firstChannelCamPos[1]+yOffset}"
+            xOffset = (chanNum - 1) * (self.chip.chanGapWidth + self.chip.chanWidth) * -1
+            cmd = f"G,{self.firstChannelCamPos[0]+xOffset},{self.firstChannelCamPos[1]}"
             self.writeRead(cmd, isMoveCmd=True)
 
     def moveDropToCam(self, dropLoc: tuple[int, int]):

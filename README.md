@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Setup
 
 1. (Optional) Create virtual environment: `python -m venv venv`
@@ -43,3 +44,6 @@
 1. Elveflow pressure system will suck in air/water when software is disconnected. Make sure cap is on
 2. Printer head is fragile
 3. Do not remove printer container by pulling on the clear plastic piping! Slide the printer out with fingernails
+=======
+# Automated-Dip-Pen
+>>>>>>> 86ff710a81ee7baf07c217ab06f91ada2dddace2

@@ -50,7 +50,9 @@ class MicroscopeDriver:
         self.ethanolWells = []
         # which wells have samples to use for experiment
         self.sampleWells = []
-
+        self.safe_z = None
+        self.in_well_z = None
+        self.spot_z = None
         # enable GUI buttons
         cb()
 
@@ -112,13 +114,11 @@ class MicroscopeDriver:
         self.microscope.saveFiducialLocation()
 
     def savePenstagePos(self):
-        """Saves the current stage position as the
-        position such that the pen is centered with
-        the fiducial marker by eyes
+        """Saves the current stage position for the pen
         """
         self.microscope.savePenLocation()
 
-    def saveOffset(self, offsetX: int, offsetY: int):
+    def saveOffset(self): #, offsetX: int, offsetY: int
         """
         Saves offset between first channel and printer head as
         (offsetX, offsetY)
@@ -131,8 +131,9 @@ class MicroscopeDriver:
         :param offsetY: difference between printing position y and focused drop y
         :type offsetY: int
         """
-
-        self.microscope.calibPrinterOffset(offsetX, offsetY)
+       # self.microscope.calibPrinterOffset(0, 0) #(offsetX, offsetY)
+        offsetX, offsetY = self.microscope.stage.calibPrinterOffset(0, 0)
+        return offsetX, offsetY
 
     def saveVoltage(self, voltage: float):
         """saves the given voltage as the one
@@ -940,31 +941,170 @@ class MicroscopeDriver:
         self.microscope.moveArmToUp()
         cb()
 
-    def printCurrToK(self, num, cb):
-        """Prints the currently held sample to num channels, starting from the first channel
-        Assumes the printer head is already down. Does not move printer head back up
-        :param cb: _description_
+    # def printCurrToK(self, num, cb):
+    #     """Prints the currently held sample to num channels, starting from the first channel
+    #     Assumes the printer head is already down. Does not move printer head back up
+    #     :param cb: _description_
+    #     :type cb: function
+    #     """
+    #     t:Thread = Thread(target=self.__printCurrToK, args=[num, cb])
+    #     self.currentThread = t
+    #     t.start()
+
+    # def __printCurrToK(self, num, cb):
+    #     if self.__checkInterrupt(cb):return
+
+    #     # self.microscope.moveArmToUp()
+    #     # if self.__checkInterrupt(cb):return
+
+    #     for i in range(1, num+1):
+    #         self.microscope.moveToChannelNoLift(i)
+    #         if self.__checkInterrupt(cb):return
+    #         self.microscope.printSample(i, save=False)
+    #         if self.__checkInterrupt(cb):return
+
+    #     self.microscope.moveChannelToCamNoLift(1)
+    #     cb()
+    def printCurrToK(self, num, cb, sample_well="A1"):
+        """Prints sample from specified well to num channels, starting from the first channel
+        Uses fully automated sequence with calibrated positions
+        
+        :param num: Number of channels to print (1 to 40)
+        :type num: int
+        :param cb: Callback function to call when done
         :type cb: function
+        :param sample_well: Well ID to aspirate from (e.g., "A1")
+        :type sample_well: str
         """
-        t:Thread = Thread(target=self.__printCurrToK, args=[num, cb])
+        t: Thread = Thread(target=self.__printCurrToK, args=[num, sample_well, cb])
         self.currentThread = t
         t.start()
+    
+    def __printCurrToK(self, num, sample_well, cb):
+        """Internal method to execute the printing sequence"""
+        # TODO: Add a button for interrupt 
+        if self.__checkInterrupt(cb): return
 
-    def __printCurrToK(self, num, cb):
-        if self.__checkInterrupt(cb):return
+        try:
+            # Get references
+            zm = self.microscope.arm.zmotor
+            s = self.microscope.stage
+            plate = self.microscope.plate
+            
+            # Get Z heights
+            safe_z = self.safe_z
+            in_well_z = self.in_well_z
+            spot_z = self.spot_z
 
-        # self.microscope.moveArmToUp()
-        # if self.__checkInterrupt(cb):return
+            if not all([safe_z, in_well_z, spot_z]):
+                raise ValueError("Z heights not calibrated")
 
-        for i in range(1, num+1):
-            self.microscope.moveToChannelNoLift(i)
-            if self.__checkInterrupt(cb):return
-            self.microscope.printSample(i, save=False)
-            if self.__checkInterrupt(cb):return
+            # Get first channel position
+            first_channel_pos = s.firstChannelCamPos
+            if first_channel_pos is None:
+                raise ValueError("First channel position not calibrated")
+                
+            channel_spacing = 260  # microns
 
-        self.microscope.moveChannelToCamNoLift(1)
-        cb()
+            # Get pen offset
+            pen_cam_offset_xy = [
+                s.fiducialCamPos[0] - s.penPos[0],  
+                s.fiducialCamPos[1] - s.penPos[1]   
+                ]
+            
+            # Get well position
+            origin_xy = s.firstWellCamPos
+            if origin_xy is None:
+                raise ValueError("First well position not calibrated")
+            
+            # Determine well spacing based on plate type
+            if 'Plate384' in plate.__class__.__name__:
+                diam = 4500
+            elif 'Plate96' in plate.__class__.__name__:
+                diam = 9000
+            elif 'Plate12' in plate.__class__.__name__:
+                diam = 22000
+            else:
+                diam = 39120
 
+            def well_id_to_index(well_id):
+                row = ord(well_id[0].upper()) - ord('A')
+                col = int(well_id[1:]) - 1
+                return row, col
+
+            def get_well_xy(well_id):
+                row, col = well_id_to_index(well_id)
+                x = origin_xy[0] + col * diam
+                y = origin_xy[1] + row * diam
+                return (x, y)
+
+            well_xy = get_well_xy(sample_well)
+
+            print(f"[PrintCurrToK] Starting to print {num} channels from well {sample_well}")
+
+            # Print to each channel (1 to num)
+            for channel_num in range(1, num + 1):
+                if self.__checkInterrupt(cb): return
+
+                # Calculate channel position (camera view)
+                channel_offset = (channel_num - 1) * channel_spacing
+                channel_cam_pos = (
+                    first_channel_pos[0] - channel_offset,
+                    first_channel_pos[1]
+                )
+                
+                # Apply pen offset to get printer position
+                channel_pen_pos = (
+                    channel_cam_pos[0] - pen_cam_offset_xy[0],
+                    channel_cam_pos[1] - pen_cam_offset_xy[1]
+                )
+
+                print(f"[PrintCurrToK] Channel {channel_num}/{num}: Moving to well {sample_well}")
+                
+                # --- Well step: aspirate sample ---
+                zm.moveToZInUM(safe_z)
+                if self.__checkInterrupt(cb): return
+                
+                s.moveToPos(well_xy[0], well_xy[1])
+                if self.__checkInterrupt(cb): return
+                
+                zm.moveToZInUM(in_well_z)
+                if self.__checkInterrupt(cb): return
+                # sleep(1)  # Wait for aspiration
+                
+                zm.moveToZInUM(safe_z)
+                if self.__checkInterrupt(cb): return
+                sleep(0.5)
+
+                # --- Channel step: dispense to channel ---
+                print(f"[PrintCurrToK] Channel {channel_num}/{num}: Dispensing to channel")
+                
+                s.moveToPos(channel_pen_pos[0], channel_pen_pos[1])
+                if self.__checkInterrupt(cb): return
+                
+                zm.moveToZInUM(spot_z)
+                if self.__checkInterrupt(cb): return
+                # sleep(1)  # Wait for dispensing
+                
+                zm.moveToZInUM(safe_z)
+                if self.__checkInterrupt(cb): return
+                sleep(0.5)
+
+                print(f"[PrintCurrToK] Completed channel {channel_num}/{num}")
+
+            # Return to first channel on camera view (optional)
+            print("[PrintCurrToK] Returning to first channel on camera")
+            first_channel_cam = (first_channel_pos[0], first_channel_pos[1])
+            s.moveToPos(first_channel_cam[0], first_channel_cam[1])
+            
+            print("[PrintCurrToK] Done")
+
+        except Exception as e:
+            print(f"[PrintCurrToK] Error: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            cb()
 
     def printToMultipleChannels(self, wellID: str, channels: list[int], cb):
         """Starts a thread that gets a sample from wellID

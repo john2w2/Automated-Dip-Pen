@@ -291,30 +291,39 @@ class AutomatedSCA:
         is focused on the camera
         """
         # TODO: implement this soon using well center algo
-        self.stage.calibFirstWellCamPos(self.stage.getStageXY())
+        # self.stage.calibFirstWellCamPos(self.stage.getStageXY())
+        xy = self.stage.getStageXY()           # Get the current XY
+        saved = self.stage.calibFirstWellCamPos(xy)   # Save it in stage
+        return saved
 
     def saveFiducialLocation(self):
         """
-        saves the current stage position as the position
-        of the stage such that the fiducial marker
-        is focused on the camera
+        saves the current stage position such that the fiducial marker (spot)
+        is focused with the camera crosshair
         """
-        self.stage.calibFiducialCamPos(self.stage.getStageXY())
+        xy = self.stage.getStageXY()
+        saved = self.stage.calibFiducialCamPos(xy)
+        return saved
 
     def savePenLocation(self):
         """
         saves the current stage position as the position
         of the stage such that the pen is focused on the camera
         """
-        self.stage.calibPenPos(self.stage.getStageXY())
+        # self.stage.calibPenPos(self.stage.getStageXY())
+        xy = self.stage.getStageXY()
+        saved = self.stage.calibPenPos(xy)
+        return saved
 
     def calibFirstChannelCam(self):
         """
         saves the current stage position as the
         position where first channel is lined up on + of camera
         """
-        self.stage.calibFirstChannelCamPos()
-
+        xy = self.stage.getStageXY()
+        saved = self.stage.calibFirstChannelCamPos(xy)
+        return saved
+    
     # def calibVoltage(self, voltage: float):
     #     """
     #     Saves the voltage needed to print a single drop
