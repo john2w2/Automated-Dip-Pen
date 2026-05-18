@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Setup
 
 1. (Optional) Create virtual environment: `python -m venv venv`
@@ -46,5 +45,4 @@
 3. Do not remove printer container by pulling on the clear plastic piping! Slide the printer out with fingernails
 =======
 # Automated-Dip-Pen
->>>>>>> 86ff710a81ee7baf07c217ab06f91ada2dddace2
 5/18/2026 - All changes are made in the my-local-updates branch.  
